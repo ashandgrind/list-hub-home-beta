@@ -1,2 +1,19 @@
-!function(){const e="a0000000-0000-4000-8000-000000000001",t="__add_store__",n="lh_item_"+["p","r","e","f","s"].join(""),i=window.supabase.createClient("https://dphkvcdohqsvefbdhsfx.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGt2Y2RvaHFzdmVmYmRoc2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5OTcxMjIsImV4cCI6MjA5OTU3MzEyMn0.Ts8vvKm8VuOYCgmtKxNQe71Ga2qjUH5jiCSlOe9vxSo",{auth:{persistSession:!0,autoRefreshToken:!0,detectSessionInUrl:!0,storage:window.localStorage}}),a={session:null,member:null,who:"chris",displayName:"Chris",slug:localStorage.getItem("list-hub-slug")||"grocery",stores:[],lists:[],items:[],prefs:[],history:[],loading:!1,listening:!1,scanStream:null,scanTimer:null},s=e=>document.querySelector(e),o=e=>[...document.querySelectorAll(e)];function r(e,t){const n=s("#status");n.textContent=e||"",n.style.color=t?"var(--danger)":"var(--muted)"}function c(e){const t=s("#toast");t.textContent=e,t.classList.remove("hidden"),clearTimeout(c._t),c._t=setTimeout((()=>t.classList.add("hidden")),3200)}function d(e){const t=s("#gate-error");if(s("#gate-info").classList.add("hidden"),!e)return t.classList.add("hidden"),void(t.textContent="");t.textContent=e,t.classList.remove("hidden")}function l(e){const t=s("#gate-error"),n=s("#gate-info");if(t.classList.add("hidden"),!e)return n.classList.add("hidden"),void(n.textContent="");n.textContent=e,n.classList.remove("hidden")}function u(e){return a.stores.find((t=>t.id===e))||null}function m(){return a.lists.find((e=>e.slug===a.slug))||null}function f(e){return String(e??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function h(e){return e?e.charAt(0).toUpperCase()+e.slice(1):""}function p(e){return String(e||"").trim().toLowerCase()}function g(){s("#app").classList.add("hidden"),s("#gate").classList.remove("hidden")}async function _(t){const n=String(t||"").trim().toLowerCase();if(!n)return null;const{data:a,error:s}=await i.from("lh_members").select("household_id,email,display_name,role,user_id").eq("household_id",e).ilike("email",n).maybeSingle();if(s)throw s;return a}async function w(){const{data:t,error:n}=await i.from("lh_stores").select("*").eq("household_id",e).eq("active",!0).order("sort_order");if(n)throw n;a.stores=t||[],y(s("#item-store"),"")}function y(e,n){if(!e)return;const i=['<option value="">Let Shopping Buddy / usual</option>',...a.stores.map((e=>`<option value="${e.id}" ${n===e.id?"selected":""}>${f(e.name)}</option>`)),`<option value="${t}">+ Add store…</option>`];e.innerHTML=i.join(""),n&&a.stores.some((e=>e.id===n))?e.value=n:e.value=""}async function v(){const{data:t,error:n}=await i.from("lh_lists").select("*").eq("household_id",e).order("slug");if(n)throw n;a.lists=t||[]}async function b(){const e=m();if(!e)return void(a.items=[]);const{data:t,error:n}=await i.from("lh_items").select("*").eq("list_id",e.id).neq("status","dropped").order("sort_order").order("created_at");if(n)throw n;a.items=t||[]}/*STUB_CONTINUE*/
-console.log('partial');}();
+(function(){
+  var N=4, base=(document.currentScript&&document.currentScript.src||'./').replace(/[^/]+$/,'');
+  Promise.all(Array.from({length:N},function(_,i){
+    return fetch(base+'app.b64.'+i+'.txt?t='+Date.now()).then(function(r){
+      if(!r.ok) throw new Error('chunk '+i+' '+r.status);
+      return r.text();
+    });
+  })).then(function(parts){
+    var bin=atob(parts.join(''));
+    var code;
+    try { code = decodeURIComponent(escape(bin)); } catch(e) { code = bin; }
+    (0,eval)(code);
+  }).catch(function(e){
+    var el=document.getElementById('gate-info')||document.body;
+    if(el.textContent!==undefined) el.textContent='Failed to load app: '+(e&&e.message||e);
+    if(el.classList) el.classList.remove('hidden');
+    console.error(e);
+  });
+})();
