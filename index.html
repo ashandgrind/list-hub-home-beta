@@ -1,1 +1,75 @@
-<!DOCTYPE html><html><body><h1>List Hub</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1419" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>List Hub · Home Beta</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div id="gate" class="screen gate">
+    <div class="gate-card">
+      <div class="logo">🛒</div>
+      <h1>List Hub</h1>
+      <p class="sub">Home Beta · Pollock household</p>
+      <label class="field">
+        <span>Access code</span>
+        <input id="access-code" type="password" autocomplete="current-password" placeholder="••••••••" enterkeyhint="go" />
+      </label>
+      <button id="gate-btn" class="btn primary" type="button">Enter</button>
+      <p id="gate-error" class="error hidden"></p>
+    </div>
+  </div>
+
+  <div id="app" class="screen app hidden">
+    <header class="top">
+      <div>
+        <h1>List Hub · Home Beta</h1>
+        <p class="meta" id="who-line">Shopping Buddy ready</p>
+      </div>
+      <button id="lock-btn" class="btn ghost sm" type="button" title="Lock">Lock</button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-slug="grocery" type="button">Grocery</button>
+      <button class="tab" data-slug="wish" type="button">Wish</button>
+      <button class="tab" data-slug="watch" type="button">Watch</button>
+    </nav>
+
+    <div id="finalized-banner" class="banner hidden">
+      Finalized — ready to push to store apps (manual for beta)
+    </div>
+
+    <section class="toolbar">
+      <div class="who-toggle" aria-label="Who is adding">
+        <button type="button" class="chip active" data-who="chris">Chris</button>
+        <button type="button" class="chip" data-who="ellen">Ellen</button>
+      </div>
+      <div class="list-actions">
+        <button id="finalize-btn" class="btn accent sm" type="button">Finalize list</button>
+        <button id="reopen-btn" class="btn ghost sm hidden" type="button">Re-open</button>
+      </div>
+    </section>
+
+    <form id="add-form" class="add-form">
+      <input id="item-name" type="text" required placeholder="Add item…" autocomplete="off" enterkeyhint="done" />
+      <div class="add-row">
+        <input id="item-qty" type="text" placeholder="Qty" autocomplete="off" />
+        <select id="item-store"><option value="">Store…</option></select>
+        <label class="check discreet">
+          <input id="item-discreet" type="checkbox" />
+          <span>Discreet</span>
+        </label>
+        <button class="btn primary" type="submit">Add</button>
+      </div>
+    </form>
+
+    <div id="status" class="status" aria-live="polite"></div>
+    <main id="items" class="items"></main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
