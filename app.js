@@ -6,12 +6,11 @@
       return r.text();
     });
   })).then(function(parts){
-    var bin=atob(parts.join(''));
-    var code;
-    try { code = decodeURIComponent(escape(bin)); } catch(e) { code = bin; }
+    var bin=atob(parts.map(function(p){return p.trim()}).join(''));
+    var code; try { code = decodeURIComponent(escape(bin)); } catch(e) { code = bin; }
     (0,eval)(code);
   }).catch(function(e){
-    var el=document.getElementById('gate-info')||document.body;
+    var el=document.getElementById('gate-info')||document.getElementById('gate-error')||document.body;
     if(el.textContent!==undefined) el.textContent='Failed to load app: '+(e&&e.message||e);
     if(el.classList) el.classList.remove('hidden');
     console.error(e);
