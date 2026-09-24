@@ -15,79 +15,50 @@ Auth is **email magic link** (preferred) with **email + password** fallback.
 1. Open https://list-hub-live.vercel.app
 2. Enter your household email (`christian@cruxibl.com` or `emfischer412@gmail.com`)
 3. Tap **Send magic link**
-4. Open the email on the same phone/browser and tap the link
-5. You land signed in; header shows your name (Chris / Ellen)
-6. Tap **Sign out** when done
-
-Only emails in `lh_members` for this household are allowed. Others see a clear rejection.
+4. Open the email on the **same phone/browser**
+5. You land signed in as Chris or Ellen (from member display name)
 
 ### Password fallback
 
-If magic-link email is blocked or redirect URLs are not set yet:
+1. Open the app → **Password** tab
+2. Enter the same allowlisted email + password (min 6 chars)
+3. First time: tap **Create password** (self-serve for allowlisted emails only)
+4. Later: **Sign in**
 
-1. Switch to the **Password** tab
-2. First time: enter email + new password (≥6 chars) → **Create password**
-3. Later: **Sign in**
-4. Session stays in `localStorage` via the Supabase client
+Other emails are rejected with a clear message.
 
-## Supabase Auth redirect (manual step)
+## Supabase Auth redirect URL (manual dashboard click)
 
-Magic links need the site URL allowlisted in Supabase:
+Magic links need Site URL / Redirect URLs to include:
 
-1. Supabase Dashboard → project `dphkvcdohqsvefbdhsfx` → **Authentication** → **URL Configuration**
-2. **Site URL**: `https://list-hub-live.vercel.app`
-3. **Redirect URLs** add:
-   - `https://list-hub-live.vercel.app`
-   - `https://list-hub-live.vercel.app/**`
-   - `http://localhost:3000/**` (optional, local)
+- `https://list-hub-live.vercel.app`
+- `https://list-hub-live.vercel.app/**`
+- Optional: `http://localhost:3000`
 
-Until that is set, use the **Password** tab.
+Set in **Supabase Dashboard → Authentication → URL Configuration**.
+This agent could not set Auth URL config via API.
 
-Email auth is already enabled (`mailer_autoconfirm: true`).
+Until redirects are set, use the **Password** tab.
 
 ## Features shipped
 
-1. **Auth** — magic link OTP + password fallback; allowlist via `lh_members`; auto `who` from `display_name`; sign out
-2. **Store optional** — default “Let Shopping Buddy / usual”; blank looks up item prefs / history; UI hint “leave blank to decide later”
-3. **Add custom store** — picker option “+ Add store…” → insert into `lh_stores` (`kind=other`, `sort_order=50`)
-4. **History suggestions** — chips while typing from past `lh_items` + prefs; tap to fill name/qty/store; upsert prefs on add
-5. **Voice add** — mic → Web Speech API → parse qty / “and” / commas → confirm chips → insert
-6. **Barcode** — camera (`BarcodeDetector`) or photo; Open Food Facts lookup; prefill name
-7. **Existing** — Grocery / Wish / Watch tabs, check/uncheck/delete, finalize/reopen, discreet, `created_by`, mobile dark UI
-
-## How Shopping Buddy uses the DB
-
-Supabase project: `dphkvcdohqsvefbdhsfx`
-
-| View | Underlying |
-|------|------------|
-| `lh_households` | `list_hub.households` |
-| `lh_stores` | `list_hub.stores` |
-| `lh_lists` | `list_hub.lists` |
-| `lh_items` | `list_hub.items` |
-| `lh_members` | `list_hub.members` |
-| item prefs view | `list_hub.item_prefs` |
-
-Household id: `a0000000-0000-4000-8000-000000000001`
-
-Item statuses: `needed` | `have` | `checked` | `dropped`  
-List statuses: `open` | `finalized` | `archived`
-
-## Stack / files
-
-Static site (no build):
-
-- `index.html` / `styles.css` / `app.js` — source
-- `index.bundled.html` — single-file deploy (inline CSS/JS; Supabase JS from CDN)
-- Vercel project: `list-hub-live` (SSO protection disabled for public home-beta access)
+- [x] Magic link OTP + password fallback; allowlist via members; sign out; localStorage session
+- [x] Store optional (“Let Shopping Buddy / usual”); prefs lookup on add; UI hint
+- [x] “+ Add store…” → insert stores for household
+- [x] History suggestion chips + upsert item prefs on add
+- [x] Voice add (Web Speech API) + confirm chips
+- [x] Barcode (BarcodeDetector / file) + Open Food Facts
+- [x] Grocery / Wish / Watch, check/delete, finalize/reopen, discreet, created_by, dark mobile UI
 
 ## Deploy notes
 
-Prior CDN flakiness → production serves **bundled HTML**. Push source to GitHub `ashandgrind/list-hub-home-beta` and redeploy Vercel with the bundled `index.html`.
+- Repo: https://github.com/ashandgrind/list-hub-home-beta
+- `list-hub-live.vercel.app` still serves a small CDN boot shell; `app.js` on GitHub/jsDelivr **self-upgrades** that shell to the magic-link UI and loads `app.b64.0..3.txt`.
+- New Vercel projects (`list-hub-live-v7`, `list-hub-home`) are behind team SSO — cannot replace the production alias without dashboard permission.
+- Prefer magic link; password fallback until Auth redirects are configured.
 
-## Known beta limits
+## Do not
 
-- No auto-push to Publix / Sam's / Walmart apps yet
-- Anon key embedded in client (private household beta)
-- No realtime sync (refresh on action)
-- Voice / barcode need a modern Chromium or Safari with permissions
+- Email Ellen from agents
+- Touch tattoo-shop tables
+- Spend money
