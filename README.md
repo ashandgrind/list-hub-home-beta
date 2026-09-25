@@ -1,64 +1,44 @@
-# List Hub · Home Beta
+# List Hub
 
-Phone-friendly household list hub for **Chris & Ellen** (Shopping Buddy / master shopper).
+Phone-friendly household lists for **Chris & Ellen**, with Shopping Buddy as the household shopping assistant.
 
-## Live URL
+Live: **https://list-hub-live.vercel.app** (also https://pollock-lists.vercel.app, Vercel project `pollock-lists`)
 
-**https://list-hub-live.vercel.app**
+This repo is the source for the live two-list app (List + Wishlist, trip planning, magic-link auth, voice add, barcode scan). Schema: Supabase project `dphkvcdohqsvefbdhsfx`, `list_hub` (public `lh_*` views).
 
-## How to sign in (Chris & Ellen)
+## Features
 
-Auth is **email magic link** (preferred) with **email + password** fallback.
+- Email magic link + password fallback (household allowlist only)
+- **List** (everyday / groceries) and **Wishlist**
+- Auto-categories (local + `lh-categorize`) and store prefs
+- Voice add and barcode scan (iPhone Safari / Chrome)
+- Store trip planning
+- Who added each item (Chris / Ellen / Shopping Buddy; older rows omit this)
+- Wishlist detail sheet: notes, target price, store/source, links, **Finds** log
+- Shopping Buddy can log Finds — see [docs/finds.md](docs/finds.md)
 
-### Magic link (phone-friendly)
+## Sign in
 
-1. Open https://list-hub-live.vercel.app
-2. Enter your household email (`christian@cruxibl.com` or `emfischer412@gmail.com`)
-3. Tap **Send magic link**
-4. Open the email on the **same phone/browser**
-5. You land signed in as Chris or Ellen (from member display name)
+1. Open the live URL
+2. Enter `christian@cruxibl.com` or `emfischer412@gmail.com`
+3. Use **Email link** (open it on the same phone) or the **Password** tab
 
-### Password fallback
+## Schema / migration
 
-1. Open the app → **Password** tab
-2. Enter the same allowlisted email + password (min 6 chars)
-3. First time: tap **Create password** (self-serve for allowlisted emails only)
-4. Later: **Sign in**
+New wishlist columns, `list_hub.finds`, RLS, and `list_hub.log_find` are in:
 
-Other emails are rejected with a clear message.
+`supabase/migrations/20260925183000_list_hub_wishlist_finds.sql`
 
-## Supabase Auth redirect URL (manual dashboard click)
+Apply that file on project `dphkvcdohqsvefbdhsfx` **before** expecting Finds / extra wishlist fields to persist. It only changes `list_hub` plus the existing public `lh_items` / new `lh_finds` wrappers. It does **not** change Auth or the Site URL.
 
-Magic links need Site URL / Redirect URLs to include:
+## Deploy
 
-- `https://list-hub-live.vercel.app`
-- `https://list-hub-live.vercel.app/**`
-- Optional: `http://localhost:3000`
+Static files (`index.html`, `app.js`, `styles.css`). If the Vercel project `pollock-lists` is linked to this GitHub repo, **merge to `main` auto-deploys**. Today’s production HTML has also been published independently (assets historically on the `lh-assets` bucket); if a merge does not update https://list-hub-live.vercel.app, redeploy this repo to `pollock-lists` and point the `list-hub-live` alias at it.
 
-Set in **Supabase Dashboard → Authentication → URL Configuration**.
-This agent could not set Auth URL config via API.
-
-Until redirects are set, use the **Password** tab.
-
-## Features shipped
-
-- [x] Magic link OTP + password fallback; allowlist via members; sign out; localStorage session
-- [x] Store optional (“Let Shopping Buddy / usual”); prefs lookup on add; UI hint
-- [x] “+ Add store…” → insert stores for household
-- [x] History suggestion chips + upsert item prefs on add
-- [x] Voice add (Web Speech API) + confirm chips
-- [x] Barcode (BarcodeDetector / file) + Open Food Facts
-- [x] Grocery / Wish / Watch, check/delete, finalize/reopen, discreet, created_by, dark mobile UI
-
-## Deploy notes
-
-- Repo: https://github.com/ashandgrind/list-hub-home-beta
-- `list-hub-live.vercel.app` still serves a small CDN boot shell; `app.js` on GitHub/jsDelivr **self-upgrades** that shell to the magic-link UI and loads `app.b64.0..3.txt`.
-- New Vercel projects (`list-hub-live-v7`, `list-hub-home`) are behind team SSO — cannot replace the production alias without dashboard permission.
-- Prefer magic link; password fallback until Auth redirects are configured.
+GitHub Pages workflow still deploys `main` as a static site (secondary).
 
 ## Do not
 
 - Email Ellen from agents
-- Touch tattoo-shop tables
+- Touch tattoo-shop tables or Auth / Site URL
 - Spend money
