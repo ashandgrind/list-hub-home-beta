@@ -1,1 +1,0 @@
-window.__LH_CHUNKS=window.__LH_CHUNKS||[];window.__LH_CHUNKS[2]=" sab.auth.getSession().then(async({data:e})=>{e.session?await onSignedIn(e.session):showGate()}).catch(()=>showGate())})();";

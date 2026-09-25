@@ -1,49 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f1419" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>List Hub · Home Beta</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1419">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>List Hub</title>
+  <meta name="list-hub-build" content="lh6-find-requests">
+  <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" defer></script>
+  <script src="app.js" defer></script>
+  <script>
+    !function () {
+      var o = location.hash || "", e = 0;
+      try { e = !!localStorage.getItem("sb-dphkvcdohqsvefbdhsfx-auth-token"); } catch (o) {}
+      window.__lhBoot = {
+        t0: Date.now(),
+        hash: /access_token=|token_hash=|[?&#]code=/.test(o + location.search),
+        recovery: /type=recovery/.test(o + location.search),
+        err: /error_description=/.test(o) ? decodeURIComponent((o.match(/error_description=([^&]*)/) || [])[1] || "").replace(/\+/g, " ") : "",
+        stored: e
+      };
+      document.documentElement.className = !window.__lhBoot.hash && !e || window.__lhBoot.err ? "boot-gate" : "boot-splash";
+    }();
+  </script>
+  <style>.boot-gate #splash, .boot-splash #gate { display: none; }</style>
 </head>
 <body>
+  <div id="splash" class="splash">
+    <div>
+      <div class="spin"></div>
+      <div id="splash-msg">Signing you in…</div>
+      <button id="splash-retry" class="btn sm ghost hidden" type="button" style="margin-top:14px">Show sign-in options</button>
+    </div>
+  </div>
+
   <div id="gate" class="screen gate">
     <div class="gate-card">
       <div class="logo">🛒</div>
       <h1>List Hub</h1>
-      <p class="sub">Home Beta · Pollock household</p>
-
+      <p class="sub">Pollock household</p>
       <div class="auth-tabs" role="tablist">
-        <button type="button" class="auth-tab active" data-auth="magic">Magic link</button>
+        <button type="button" class="auth-tab active" data-auth="magic">Email link</button>
         <button type="button" class="auth-tab" data-auth="password">Password</button>
       </div>
-
       <div id="auth-magic" class="auth-panel">
         <label class="field">
           <span>Email</span>
-          <input id="login-email" type="email" autocomplete="email" placeholder="you@example.com" enterkeyhint="go" />
+          <input id="login-email" type="email" autocomplete="email" placeholder="you@example.com" enterkeyhint="go">
         </label>
-        <button id="magic-btn" class="btn primary" type="button">Send magic link</button>
-        <p class="hint">We’ll email a sign-in link. Only Chris &amp; Ellen can join this household.</p>
+        <button id="magic-btn" class="btn primary" type="button">Email me a sign-in link</button>
+        <p class="hint">Open the link on this phone. You’ll stay signed in afterwards.</p>
       </div>
-
       <div id="auth-password" class="auth-panel hidden">
         <label class="field">
           <span>Email</span>
-          <input id="pw-email" type="email" autocomplete="username" placeholder="you@example.com" />
+          <input id="pw-email" type="email" autocomplete="username" placeholder="you@example.com">
         </label>
         <label class="field">
           <span>Password</span>
-          <input id="pw-password" type="password" autocomplete="current-password" placeholder="••••••••" enterkeyhint="go" />
+          <input id="pw-password" type="password" autocomplete="current-password" placeholder="••••••••" enterkeyhint="go">
         </label>
         <button id="pw-signin-btn" class="btn primary" type="button">Sign in</button>
-        <button id="pw-signup-btn" class="btn ghost" type="button">First time? Create password</button>
-        <p class="hint">Fallback if magic link email is blocked. Same allowlist.</p>
+        <div id="pw-note" class="note hidden"></div>
+        <button id="pw-setup-btn" class="btn wide hidden" type="button">Email me a password setup link</button>
+        <button id="pw-create-btn" class="btn ghost wide hidden" type="button">Create my password</button>
+        <p class="hint"><a href="#" id="pw-forgot" style="color:var(--muted)">Forgot password / never set one?</a></p>
       </div>
-
       <p id="gate-error" class="error hidden"></p>
       <p id="gate-info" class="info hidden"></p>
     </div>
@@ -52,70 +77,65 @@
   <div id="app" class="screen app hidden">
     <header class="top">
       <div>
-        <h1>List Hub · Home Beta</h1>
-        <p class="meta" id="who-line">Shopping Buddy ready</p>
+        <h1>List Hub</h1>
+        <p class="meta" id="who-line"></p>
       </div>
-      <button id="signout-btn" class="btn ghost sm" type="button" title="Sign out">Sign out</button>
+      <div class="top-actions">
+        <button id="setpw-btn" class="btn ghost sm hidden" type="button">🔑 Set password</button>
+        <button id="signout-btn" class="btn ghost sm" type="button">Sign out</button>
+      </div>
     </header>
-
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-slug="grocery" type="button">Grocery</button>
-      <button class="tab" data-slug="wish" type="button">Wish</button>
-      <button class="tab" data-slug="watch" type="button">Watch</button>
+      <button class="tab active" data-kind="needs" type="button">List<span class="n" id="n-needs"></span></button>
+      <button class="tab" data-kind="wish" type="button">Wishlist<span class="n" id="n-wish"></span></button>
     </nav>
-
-    <div id="finalized-banner" class="banner hidden">
-      Finalized — ready to push to store apps (manual for beta)
-    </div>
-
-    <section class="toolbar">
-      <div class="who-badge" id="who-badge">Signed in</div>
-      <div class="list-actions">
-        <button id="finalize-btn" class="btn accent sm" type="button">Finalize list</button>
-        <button id="reopen-btn" class="btn ghost sm hidden" type="button">Re-open</button>
-      </div>
-    </section>
-
-    <form id="add-form" class="add-form">
+    <div id="trip-banners"></div>
+    <form id="add-form" class="add-form" autocomplete="off">
       <div class="name-row">
-        <input id="item-name" type="text" required placeholder="Add item…" autocomplete="off" enterkeyhint="done" />
-        <button id="mic-btn" class="btn icon" type="button" title="Voice add" aria-label="Voice add">🎤</button>
-        <button id="barcode-btn" class="btn icon" type="button" title="Scan barcode" aria-label="Scan barcode">📷</button>
-        <input id="barcode-file" type="file" accept="image/*,.pdf" capture="environment" class="hidden" />
+        <input id="item-name" type="text" placeholder="Add item…" autocomplete="off" enterkeyhint="done">
+        <button id="mic-btn" class="btn icon" type="button" aria-label="Voice add">🎤</button>
+        <button id="barcode-btn" class="btn icon" type="button" aria-label="Scan barcode">📷</button>
+        <button class="btn primary" type="submit">Add</button>
+        <input id="barcode-file" type="file" accept="image/*" capture="environment" class="hidden">
       </div>
-      <div id="suggest-chips" class="chips hidden" aria-live="polite"></div>
-      <div id="voice-confirm" class="chips hidden" aria-live="polite"></div>
-      <div class="add-row">
-        <input id="item-qty" type="text" placeholder="Qty" autocomplete="off" />
-        <select id="item-store">
-          <option value="">Let Shopping Buddy / usual</option>
-        </select>
-        <label class="check discreet">
-          <input id="item-discreet" type="checkbox" />
+      <div id="suggest-chips" class="chips hidden"></div>
+      <div id="voice-confirm" class="chips hidden"></div>
+      <div id="split-chip" class="chips hidden"></div>
+      <button type="button" class="more-toggle" id="more-toggle">＋ qty / store / discreet (optional)</button>
+      <div id="more-row" class="more-row hidden">
+        <input id="item-qty" type="text" placeholder="Qty">
+        <select id="item-store"></select>
+        <label class="discreet">
+          <input id="item-discreet" type="checkbox">
           <span>Discreet</span>
         </label>
-        <button class="btn primary" type="submit">Add</button>
       </div>
-      <p class="field-hint">Store optional — leave blank to decide later (or we’ll use your usual).</p>
     </form>
-
     <div id="status" class="status" aria-live="polite"></div>
-    <div id="toast" class="toast hidden" role="status"></div>
     <main id="items" class="items"></main>
+    <div class="bottom-bar" id="plan-bar">
+      <button id="plan-btn" class="btn primary" type="button">🛒 Plan a trip</button>
+    </div>
   </div>
 
+  <div id="toast" class="toast hidden" role="status"></div>
+  <div id="sheet" class="modal hidden" aria-hidden="true">
+    <div class="modal-card" id="sheet-card"></div>
+  </div>
   <div id="scan-modal" class="modal hidden" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-top">
         <strong>Scan barcode</strong>
         <button type="button" class="btn ghost sm" id="scan-close">Close</button>
       </div>
-      <video id="scan-video" playsinline muted></video>
-      <p class="hint" id="scan-hint">Point at a barcode…</p>
-      <button type="button" class="btn ghost" id="scan-file-btn">Use photo instead</button>
+      <div class="scan-wrap">
+        <video id="scan-video" playsinline muted autoplay></video>
+        <div id="lh-scan-guide"></div>
+      </div>
+      <p class="hint" id="scan-hint">Hold steady — fill the green box with the barcode (sideways works too).</p>
+      <p id="lh-scan-debug"></p>
+      <button type="button" class="btn ghost wide" id="scan-file-btn">Use a photo instead</button>
     </div>
   </div>
-
-  <script src="app.js"></script>
 </body>
 </html>
