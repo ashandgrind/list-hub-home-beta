@@ -236,16 +236,24 @@
         };
         u("[data-delfind]").forEach(function(t) {
             t.onclick = async function() {
-                if (confirm("Remove this find?")) {
-                    var n = t.dataset.delfind,
-                        i = await _().from("lh_finds").delete().eq("id", n);
-                    if (i.error) return g(i.error.message, !0);
-                    w.finds = w.finds.filter(function(e) {
-                        return e.id !== n
-                    }), w.findsByItem[e.id] = (w.findsByItem[e.id] || []).filter(function(e) {
-                        return e.id !== n
-                    }), se(), openWish(e)
+                var n = t.dataset.delfind;
+                if (t.dataset.sure !== "1") {
+                    t.dataset.sure = "1";
+                    t.textContent = "Tap again to remove";
+                    t.classList.add("danger");
+                    setTimeout(function() {
+                        if (t && t.dataset) t.dataset.sure = "0", t.textContent = "Remove", t.classList.remove("danger")
+                    }, 4000);
+                    return
                 }
+                t.disabled = !0;
+                var i = await _().from("lh_finds").delete().eq("id", n);
+                if (i.error) return t.disabled = !1, g(i.error.message, !0);
+                w.finds = w.finds.filter(function(e) {
+                    return e.id !== n
+                }), w.findsByItem[e.id] = (w.findsByItem[e.id] || []).filter(function(e) {
+                    return e.id !== n
+                }), se(), openWish(e)
             }
         })
     }
