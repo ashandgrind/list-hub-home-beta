@@ -2,7 +2,9 @@
 
 Phone-friendly household lists for **Chris & Ellen**, with Shopping Buddy as the household shopping assistant.
 
-Live: **https://list-hub-live.vercel.app** (also https://pollock-lists.vercel.app, Vercel project `pollock-lists`)
+Live: **https://hq.cruxibl.com/listhub/** (primary; auto-deploys from `main`)
+
+Legacy: https://list-hub-live.vercel.app and https://pollock-lists.vercel.app (Vercel project `pollock-lists`, not updated from this repo)
 
 This repo is the source for the live two-list app (List + Wishlist, trip planning, magic-link auth, voice add, barcode scan). Schema: Supabase project `dphkvcdohqsvefbdhsfx`, `list_hub` (public `lh_*` views).
 
@@ -38,7 +40,13 @@ Apply those files on project `dphkvcdohqsvefbdhsfx` **before** expecting Finds /
 
 ## Deploy
 
-Static files (`index.html`, `app.js`, `styles.css`). If the Vercel project `pollock-lists` is linked to this GitHub repo, **merge to `main` auto-deploys**. Today’s production HTML has also been published independently (assets historically on the `lh-assets` bucket); if a merge does not update https://list-hub-live.vercel.app, redeploy this repo to `pollock-lists` and point the `list-hub-live` alias at it.
+**Merge to `main` = deploy.** Vercel project `list-hub-home-beta` (team ashandgrind1) is git-linked to this repo and builds every push to `main` to production (`https://list-hub-home-beta.vercel.app`).
+
+`https://hq.cruxibl.com/listhub/` is served by the HQ Cloudflare tunnel (`hq`, config on the HQ desktop at `C:\Users\chris\.cloudflared\config.yml`): requests whose path starts with `/listhub` go straight to `list-hub-home-beta.vercel.app`; everything else on hq.cruxibl.com stays on Mission Control.
+
+Cache safety: `scripts/build.mjs` (no dependencies) copies `app.js` / `styles.css` into `dist/assets/` with content-hashed names and rewrites `index.html` to point at them. `vercel.json` serves HTML with `Cache-Control: no-cache` and hashed assets as immutable, so a new release reaches phones on the next load. Keep asset references in `index.html` relative (no leading `/`) so the app works both at `/` and under `/listhub/`. Auth redirects use `lhAuthRedirect()` (current origin + directory).
+
+`<meta name="list-hub-commit">` in the served HTML shows which commit is live.
 
 GitHub Pages workflow still deploys `main` as a static site (secondary).
 

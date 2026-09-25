@@ -1,3 +1,7 @@
+/* Auth redirects return to wherever the app is served (root on list-hub-live, /listhub/ on hq.cruxibl.com). */
+function lhAuthRedirect() {
+    return location.origin + location.pathname.replace(/[^/]*$/, "");
+}
 ! function() {
     "use strict";
     var e, t = "https://dphkvcdohqsvefbdhsfx.supabase.co",
@@ -606,7 +610,7 @@
             var a = await _().auth.signInWithOtp({
                 email: e,
                 options: {
-                    emailRedirectTo: location.origin + "/",
+                    emailRedirectTo: lhAuthRedirect(),
                     shouldCreateUser: !0
                 }
             });
@@ -667,7 +671,7 @@
         if (t && !t.member) return v("That email isn’t on this household.");
         if (t && !t.account) return j("No account for this email yet — type the password you want and tap <b>Create my password</b>.", !1, !0);
         var n = await _().auth.resetPasswordForEmail(e, {
-            redirectTo: location.origin + "/"
+            redirectTo: lhAuthRedirect()
         });
         if (n.error) return v(A(n.error.message));
         j("Sent! Open the email on this phone and tap the link — you’ll be signed in and asked to choose your password.", !1, !1)
@@ -733,7 +737,7 @@
             email: e,
             password: t,
             options: {
-                emailRedirectTo: location.origin + "/",
+                emailRedirectTo: lhAuthRedirect(),
                 data: {
                     has_password: !0
                 }
