@@ -131,6 +131,91 @@
         return Math.abs(n) < .005 ? "Matches your $" + money(e) + " target." : n < 0 ? "$" + money(-n) + " under your $" + money(e) + " target." : "$" + money(n) + " over your $" + money(e) + " target."
     }
 
+    function relTime(e) {
+        if (!e) return "";
+        var t = new Date(e);
+        if (isNaN(t)) return "";
+        var n = Math.round((t.getTime() - Date.now()) / 1e3),
+            i = Math.abs(n),
+            o, s;
+        if (i < 45) return n >= 0 ? "in a moment" : "just now";
+        if (i < 3600) o = Math.round(i / 60), s = 1 === o ? "1 min" : o + " min";
+        else if (i < 86400) o = Math.round(i / 3600), s = 1 === o ? "1h" : o + "h";
+        else if (i < 86400 * 14) o = Math.round(i / 86400), s = 1 === o ? "1 day" : o + " days";
+        else return t.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric"
+        });
+        return n > 0 ? "in " + s : s + " ago"
+    }
+
+    function relWhen(e) {
+        if (!e) return "";
+        var t = new Date(e);
+        if (isNaN(t)) return "";
+        var n = new Date,
+            i = function(e) {
+                return Date.UTC(e.getFullYear(), e.getMonth(), e.getDate())
+            },
+            o = Math.round((i(t) - i(n)) / 864e5);
+        if (t.getTime() < n.getTime()) return relTime(e);
+        if (0 === o) return t.getTime() - n.getTime() < 90 * 60 * 1e3 ? relTime(e) : "today";
+        if (1 === o) return "tomorrow";
+        if (o < 8) return "in " + o + " days";
+        return t.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric"
+        })
+    }
+
+    function freqPhrase(e) {
+        return "daily" === e ? "daily" : "weekly" === e ? "weekly" : "once"
+    }
+
+    function rememberRequest(e) {
+        if (!e || !e.id) return e;
+        w.findRequests = (w.findRequests || []).filter(function(t) {
+            return t.id !== e.id
+        });
+        w.findRequests.unshift(e);
+        var t = {};
+        w.findRequests.forEach(function(e) {
+            (t[e.item_id] = t[e.item_id] || []).push(e)
+        });
+        w.reqByItem = t;
+        return e
+    }
+
+    function currentRequest(e) {
+        var t = (w.reqByItem && w.reqByItem[e] || []).slice();
+        if (!t.length) return null;
+        var n = t.filter(function(e) {
+            return "pending" === e.status || "active" === e.status || "paused" === e.status
+        });
+        return n[0] || t[0]
+    }
+
+    function requestIsOpen(e) {
+        return e && ("pending" === e.status || "active" === e.status || "paused" === e.status)
+    }
+
+    function requestStatusLine(e) {
+        if (!e) return "Shopping Buddy is not searching this item.";
+        var t = e.last_run_at ? relTime(e.last_run_at) : "",
+            n = e.next_run_at ? relWhen(e.next_run_at) : "";
+        if ("cancelled" === e.status) return "Search stopped.";
+        if ("done" === e.status) return "One-time search finished" + (t ? " " + t : "") + ".";
+        if ("paused" === e.status) return "Paused · was searching " + freqPhrase(e.frequency) + (t ? " · last run " + t : "") + ".";
+        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued — Shopping Buddy will search once shortly." : "Queued — searching " + freqPhrase(e.frequency) + " starting shortly.";
+        var i = ["Searching " + freqPhrase(e.frequency)];
+        return t && i.push("last run " + t), n && "done" !== e.status && i.push("next run " + n), i.join(", ")
+    }
+
+    function requestBadge(e) {
+        if (!requestIsOpen(e)) return "";
+        return "paused" === e.status ? "Paused" : "once" === e.frequency ? "Finding" : "daily" === e.frequency ? "Daily" : "Weekly"
+    }
+
     async function hydrateExtras() {
         try {
             var e = await _().from("lh_items").select("id,notes,target_price,preferred_source,product_links,added_by_user_id,added_by_kind,created_by,created_at,preferred_store_id");
@@ -151,6 +236,25 @@
                 })
             }
         } catch (e) {}
+        try {
+            var n = await _().from("lh_find_requests").select("*").order("created_at", {
+                ascending: !1
+            });
+            if (!n.error) {
+                w.findRequests = n.data || [];
+                w.reqByItem = {};
+                w.findRequests.forEach(function(e) {
+                    (w.reqByItem[e.item_id] = w.reqByItem[e.item_id] || []).push(e)
+                })
+            }
+        } catch (e) {}
+    }
+
+    function requestCardHtml(e) {
+        var t = requestIsOpen(e),
+            n = e && "paused" === e.status,
+            i = '<div class="req-card' + (t ? "" : " muted") + '"><div class="req-k">Find options</div><div class="req-status">' + h(requestStatusLine(e)) + "</div>" + (e && e.last_summary && t ? '<div class="req-sum">' + h(e.last_summary) + "</div>" : "") + (e && (e.max_price || e.condition_pref) && t ? '<div class="item-meta">' + (e.max_price ? '<span class="badge">Max $' + h(money(e.max_price)) + "</span>" : "") + (e.condition_pref && "any" !== e.condition_pref ? '<span class="badge">' + h(e.condition_pref) + "</span>" : "") + "</div>" : "") + '<div class="req-actions"><button type="button" class="btn sm accent" id="req-opts">Find options</button>' + (t && !n ? '<button type="button" class="btn sm ghost" id="req-pause">Pause</button>' : "") + (n ? '<button type="button" class="btn sm" id="req-resume">Resume</button>' : "") + (t ? '<button type="button" class="btn sm danger" id="req-stop">Stop</button>' : "") + "</div></div>";
+        return i
     }
 
     function openWish(e) {
@@ -167,12 +271,14 @@
                 day: "numeric"
             }) : "",
             d = n ? compareTarget(e.target_price, n.price) : "",
-            u = parseLinks(e.product_links);
+            links = parseLinks(e.product_links),
+            q = currentRequest(e.id),
+            reqHtml = requestCardHtml(q);
 
         function p(e, t) {
             return '<div class="detail-row"><span class="detail-k">' + h(e) + '</span><span class="detail-v">' + t + "</span></div>"
         }
-        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((r[e.category] || "📦") + " " + (e.category || "Other"))) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (u.length ? '<div class="link-list">' + u.map(function(e) {
+        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((r[e.category] || "📦") + " " + (e.category || "Other"))) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
             return '<a href="' + h(e.url) + '" target="_blank" rel="noopener">' + h(e.label || e.url) + "</a>"
         }).join("") + "</div>" : "") + '<button class="btn primary" type="submit" id="wish-save">Save details</button></form><div class="finds-block"><div class="group-title"><span>Finds · ' + t.length + "</span></div>" + (t.length ? t.map(function(e) {
             var t = e.found_by_kind === "assistant" || /shopping\s*buddy/i.test(e.found_by || "") ? "Shopping Buddy" : e.found_by && !/^unknown$/i.test(e.found_by) ? e.found_by : "",
@@ -255,9 +361,86 @@
                     return e.id !== n
                 }), se(), openWish(e)
             }
+        });
+        var reqOpts = l("#req-opts");
+        reqOpts && (reqOpts.onclick = function() {
+            openFindOptions(e)
+        });
+        var reqPause = l("#req-pause");
+        reqPause && (reqPause.onclick = function() {
+            setRequestStatus(e, q, "paused")
+        });
+        var reqResume = l("#req-resume");
+        reqResume && (reqResume.onclick = function() {
+            setRequestStatus(e, q, "pending", {
+                next_run_at: (new Date).toISOString()
+            })
+        });
+        var reqStop = l("#req-stop");
+        reqStop && (reqStop.onclick = function() {
+            setRequestStatus(e, q, "cancelled")
         })
     }
 
+    async function setRequestStatus(e, t, n, i) {
+        if (!t) return;
+        var o = Object.assign({
+            status: n,
+            updated_at: (new Date).toISOString()
+        }, i || {});
+        var s = await _().from("lh_find_requests").update(o).eq("id", t.id).select("*").single();
+        if (s.error) return g(s.error.message, !0);
+        rememberRequest(s.data), se(), f("paused" === n ? "Search paused" : "pending" === n ? "Search resumed" : "Search stopped"), openWish(e)
+    }
+
+    function openFindOptions(e) {
+        var t = currentRequest(e.id),
+            n = requestIsOpen(t) ? t : null,
+            i = n && n.frequency || "once",
+            o = n && null != n.max_price ? String(n.max_price) : "",
+            s = n && n.condition_pref || "any",
+            c = n && n.notes || "";
+        U('<div class="modal-top"><strong>Find options</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint">Ask Shopping Buddy to look for “' + h(e.name) + '”. Once now runs as soon as the assistant polls; Daily and Weekly keep searching.</p><form id="find-opts" class="wish-form"><div class="field"><span>How often</span><div class="freq-row" id="find-freq">' + [["once", "Once now"], ["daily", "Daily"], ["weekly", "Weekly"]].map(function(e) {
+            return '<button type="button" class="chip-btn' + (e[0] === i ? " on" : "") + '" data-freq="' + e[0] + '">' + e[1] + "</button>"
+        }).join("") + '</div></div><label class="field"><span>Max price (optional)</span><input id="find-max" inputmode="decimal" enterkeyhint="next" placeholder="e.g. 400" value="' + h(o) + '"></label><div class="field"><span>Condition</span><div class="freq-row" id="find-condpref">' + [["any", "Any"], ["new", "New"], ["used", "Used"]].map(function(e) {
+            return '<button type="button" class="chip-btn' + (e[0] === s ? " on" : "") + '" data-cond="' + e[0] + '">' + e[1] + "</button>"
+        }).join("") + '</div></div><label class="field"><span>Notes for Shopping Buddy</span><textarea id="find-req-notes" rows="3" placeholder="Size, must-haves, avoid…">' + h(c) + '</textarea></label><button class="btn primary" type="submit">' + (n ? "Update search" : "Start search") + "</button></form>");
+        var freqPick = i,
+            condPick = s;
+        u("#find-freq [data-freq]").forEach(function(e) {
+            e.onclick = function() {
+                freqPick = e.dataset.freq, u("#find-freq [data-freq]").forEach(function(t) {
+                    t.classList.toggle("on", t === e)
+                })
+            }
+        });
+        u("#find-condpref [data-cond]").forEach(function(e) {
+            e.onclick = function() {
+                condPick = e.dataset.cond, u("#find-condpref [data-cond]").forEach(function(t) {
+                    t.classList.toggle("on", t === e)
+                })
+            }
+        });
+        l("#find-opts").onsubmit = async function(t) {
+            t.preventDefault();
+            var n = l("#find-max").value.trim(),
+                i = "" === n ? null : Number(n.replace(/[$,]/g, ""));
+            if (n && !isFinite(i)) return f("Max price should be a number");
+            var o = {
+                item_id: e.id,
+                household_id: a,
+                frequency: freqPick,
+                max_price: i,
+                condition_pref: condPick && "any" !== condPick ? condPick : "any",
+                notes: l("#find-req-notes").value.trim() || null,
+                status: "pending"
+            };
+            this.querySelector("[type=submit]").disabled = !0;
+            var s = await _().from("lh_find_requests").insert(o).select("*").single();
+            if (this.querySelector("[type=submit]").disabled = !1, s.error) return g(s.error.message, !0);
+            rememberRequest(s.data), se(), N(), f("once" === freqPick ? "Shopping Buddy will search once" : "Searching " + freqPhrase(freqPick)), openWish(e)
+        }
+    }
 
     function f(t, n) {
         var a = l("#toast");
@@ -303,11 +486,13 @@
         trips: [],
         finds: [],
         findsByItem: {},
+        findRequests: [],
+        reqByItem: {},
         loadedAt: 0,
         pending: null
     };
     window.__lh = {
-        version: "lh6",
+        version: "lh6.1",
         S: w,
         T: c
     };
@@ -831,8 +1016,10 @@
         var t = Y(e.preferred_store_id),
             n = adderLabel(e),
             i = bestFind(e.id),
-            o = "wish" === w.kind;
-        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (r[e.category] || "📦") + " " + h(e.category || "Other") + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div></div><button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
+            o = "wish" === w.kind,
+            q = currentRequest(e.id),
+            z = requestBadge(q);
+        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (r[e.category] || "📦") + " " + h(e.category || "Other") + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div></div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
     }
 
     function se() {
@@ -892,8 +1079,11 @@
                             var t = await _().from("lh_items").delete().eq("id", e.id);
                             t.error ? (g(t.error.message, !0), O()) : f("Deleted “" + e.name + "”")
                         }(t)
-                    }, (e.querySelector('[data-act="detail"]') || {onclick: null}).onclick = function(n) {
-                        if (!(n && n.target && n.target.closest && n.target.closest('[data-act="cat"]'))) openWish(t)
+                    },                     (e.querySelector('[data-act="detail"]') || {onclick: null}).onclick = function(n) {
+                        if (!(n && n.target && n.target.closest && n.target.closest('[data-act="cat"], [data-act="findopts"]'))) openWish(t)
+                    }, (e.querySelector('[data-act="findopts"]') || {onclick: null}).onclick = function(n) {
+                        n && n.stopPropagation && n.stopPropagation();
+                        openFindOptions(t)
                     }, e.querySelector('[data-act="cat"]').onclick = function(n) {
                         n && n.stopPropagation && n.stopPropagation();
                         var e;
@@ -1770,6 +1960,7 @@
             render: se,
             recFinish: He,
             openWish: openWish,
+            openFindOptions: openFindOptions,
             adderLabel: adderLabel
         },
         function e() {

@@ -733,6 +733,80 @@ body:has(#sheet:not(.hidden)) .toast {
     color: var(--muted)
 }
 
+.badge.search {
+    color: #f5d48a;
+    border-color: rgba(245, 165, 36, .45)
+}
+
+.find-btn {
+    background: transparent;
+    border: 0;
+    font-size: 1.05rem;
+    padding: 6px 4px;
+    cursor: pointer;
+    flex: 0 0 auto;
+    line-height: 1;
+    min-width: 36px;
+    min-height: 36px
+}
+
+.req-card {
+    background: rgba(91, 140, 255, .1);
+    border: 1px solid rgba(91, 140, 255, .35);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 14px
+}
+
+.req-card.muted {
+    background: var(--bg2);
+    border-color: var(--line)
+}
+
+.req-k {
+    font-size: .74rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px
+}
+
+.req-status {
+    font-weight: 650;
+    line-height: 1.35
+}
+
+.req-sum,
+.req-card .item-meta {
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: 6px
+}
+
+.req-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px
+}
+
+.req-actions .btn {
+    width: auto
+}
+
+.freq-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px
+}
+
+.freq-row .chip-btn {
+    border-radius: 12px;
+    padding: 10px 8px;
+    font-weight: 650
+}
+
 .item.wish-item .item-body {
     cursor: pointer;
     -webkit-tap-highlight-color: rgba(91, 140, 255, .18)

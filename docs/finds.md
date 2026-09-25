@@ -10,6 +10,8 @@ File: [`supabase/migrations/20260925183000_list_hub_wishlist_finds.sql`](../supa
 
 Until that SQL has been applied to project `dphkvcdohqsvefbdhsfx`, `list_hub.finds` / `list_hub.log_find` will not exist.
 
+Find-options / research jobs: [`supabase/migrations/20260925190000_list_hub_find_requests.sql`](../supabase/migrations/20260925190000_list_hub_find_requests.sql) — `list_hub.find_requests`, `list_hub.due_find_requests()`, `list_hub.complete_find_run()`.
+
 ## Table insert shape (`list_hub.finds`)
 
 `household_id` and attribution columns are filled by a trigger. Send:
@@ -129,3 +131,113 @@ On `list_hub.items` (also exposed on `public.lh_items` after this migration):
 | `product_links` | jsonb | `[{ "url": "https://…", "label": "Amazon" }, …]` or `["https://…"]` |
 
 Items added by the assistant should insert with `created_by = 'Shopping Buddy'` (or `added_by_kind = 'assistant'`). A trigger sets the display name. New member inserts are stamped from the signed-in user. Older rows stay `added_by_kind = unknown` and the UI omits “who added it”.
+
+## Find options (`list_hub.find_requests`)
+
+A **Find request** is a research job the household sets on a Wishlist item. Shopping Buddy (service role, outside this app) polls for due jobs, logs Finds with `list_hub.log_find` / `lh_finds`, then marks the run complete.
+
+The app shows **Find options** on each Wishlist row (🔎) and on the item detail sheet. Members pick:
+
+- Frequency: `once` (Once now) · `daily` · `weekly`
+- Optional max price
+- Condition preference: `new` · `used` · `any`
+- Optional notes for the assistant
+
+Creating a request inserts a row (status `pending`, `next_run_at = now()`). One open request per item: a new insert cancels any previous `pending` / `active` / `paused` row for that item. Detail view shows a status line such as `Searching daily, last run 2h ago, next run tomorrow`, plus **Pause** / **Resume** / **Stop**.
+
+### Table
+
+`list_hub.find_requests` (also `list_hub.lh_find_requests` and public `lh_find_requests`).
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid | default `gen_random_uuid()` |
+| `household_id` | uuid | filled by trigger from the item’s list |
+| `item_id` | uuid | Wishlist / list item |
+| `requested_by` | text | Chris / Ellen / Shopping Buddy |
+| `requested_by_user_id` | uuid | signed-in member when known |
+| `frequency` | text | `once` \| `daily` \| `weekly` |
+| `max_price` | numeric(12,2) | optional; `>= 0` |
+| `condition_pref` | text | optional `new` \| `used` \| `any` |
+| `notes` | text | optional instructions |
+| `status` | text | `pending` \| `active` \| `paused` \| `done` \| `cancelled` |
+| `last_run_at` | timestamptz | last completed run |
+| `next_run_at` | timestamptz | when the next run is due |
+| `last_summary` | text | last `complete_find_run` summary |
+| `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+RLS: household members (`list_hub.is_member`) can select / insert / update / delete their household’s rows. `service_role` has full table grants.
+
+App writes go through **public `lh_find_requests`**. Pause = `status = paused`. Resume = `status = pending` and `next_run_at = now()`. Stop = `status = cancelled`.
+
+### Assistant poll loop
+
+Due = `status = pending`, **or** `status = active` and `next_run_at <= now()`. Paused / done / cancelled are never due.
+
+```text
+1. rows ← list_hub.due_find_requests()          -- or public.lh_due_find_requests()
+2. for each row:
+     research using item_name, item_notes, target_price,
+     preferred_source, product_links, max_price, condition_pref, notes
+     insert each listing via list_hub.log_find / lh_finds
+     list_hub.complete_find_run(row.id, 'short summary')
+```
+
+`complete_find_run` sets `last_run_at = now()`, stores `last_summary`, then:
+
+| Frequency | New status | `next_run_at` |
+| --- | --- | --- |
+| `once` | `done` | `null` |
+| `daily` | `active` | now + 1 day |
+| `weekly` | `active` | now + 7 days |
+
+It raises `not_runnable` if the row is not `pending` or `active`.
+
+### RPC `list_hub.due_find_requests()`
+
+Returns due jobs joined with the item. Household members only see their household; **service_role** sees every due row.
+
+| Column | Source |
+| --- | --- |
+| `id`, `household_id`, `item_id` | request |
+| `item_name`, `item_notes`, `target_price`, `preferred_source`, `product_links` | `list_hub.items` |
+| `frequency`, `max_price`, `condition_pref`, `notes`, `status`, `requested_by` | request |
+| `last_run_at`, `next_run_at`, `created_at` | request |
+
+SQL (service role):
+
+```sql
+select * from list_hub.due_find_requests();
+```
+
+PostgREST / supabase-js (public wrapper):
+
+```js
+const { data, error } = await supabase.rpc('lh_due_find_requests');
+```
+
+### RPC `list_hub.complete_find_run(request_id, summary)`
+
+```sql
+select list_hub.complete_find_run(
+  p_request_id := '11111111-1111-4111-8111-111111111111',
+  p_summary    := 'Logged 2 eBay listings under $350; nothing new on Amazon.'
+);
+```
+
+| Arg | Type | Default |
+| --- | --- | --- |
+| `p_request_id` | uuid | required |
+| `p_summary` | text | null |
+
+Public wrapper:
+
+```js
+const { data, error } = await supabase.rpc('lh_complete_find_run', {
+  p_request_id: requestId,
+  p_summary: 'Logged 2 eBay listings under $350.'
+});
+```
+
+`list_hub` is not the default PostgREST schema — prefer the `lh_*` wrappers or SQL with the service role. Do not change Auth or the Site URL.
