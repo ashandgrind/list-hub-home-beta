@@ -232,7 +232,7 @@ SET subsection = list_hub.guess_aisle(name, category)
 WHERE subsection IS NULL;
 
 -- ---------------------------------------------------------------------------
--- views (additive column only)
+-- views (additive column only; keep existing security_invoker + local check option)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW list_hub.lh_items
 WITH (security_invoker = true) AS
@@ -257,14 +257,16 @@ WITH (security_invoker = true) AS
 SELECT household_id, name_key, category, source, updated_at, subsection
 FROM list_hub.category_cache
 WHERE list_hub.is_member(household_id)
-   OR COALESCE(auth.jwt() ->> 'role', '') = 'service_role';
+   OR COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
+WITH LOCAL CHECK OPTION;
 
 CREATE OR REPLACE VIEW public.lh_trip_items
 WITH (security_invoker = true) AS
 SELECT id, trip_id, household_id, item_id, name, qty, category, checked,
        checked_at, sort_order, created_at, subsection
 FROM list_hub.trip_items
-WHERE list_hub.is_member(household_id);
+WHERE list_hub.is_member(household_id)
+WITH LOCAL CHECK OPTION;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON list_hub.lh_items TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.lh_items TO authenticated, service_role;
