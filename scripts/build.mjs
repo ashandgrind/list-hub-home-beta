@@ -9,7 +9,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(`${out}/assets`, { recursive: true });
 
 const hashed = {};
-for (const [src, base, ext] of [["app.js", "app", "js"], ["styles.css", "styles", "css"]]) {
+for (const [src, base, ext] of [["categories.js", "categories", "js"], ["app.js", "app", "js"], ["styles.css", "styles", "css"]]) {
   const buf = readFileSync(src);
   const h = createHash("sha256").update(buf).digest("hex").slice(0, 12);
   const name = `assets/${base}.${h}.${ext}`;
