@@ -7,8 +7,6 @@ function lhAuthRedirect() {
     var e, t = "https://dphkvcdohqsvefbdhsfx.supabase.co",
         n = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGt2Y2RvaHFzdmVmYmRoc2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5OTcxMjIsImV4cCI6MjA5OTU3MzEyMn0.Ts8vvKm8VuOYCgmtKxNQe71Ga2qjUH5jiCSlOe9vxSo",
         a = "a0000000-0000-4000-8000-000000000001",
-        C = window.LHCats,
-        i = C.LEGACY_SECTIONS,
         r = {
             Food: "🍎",
             Household: "🧻",
@@ -517,7 +515,7 @@ function lhAuthRedirect() {
         version: "lh6.2",
         S: w,
         T: c,
-        cats: C,
+        cats: window.LHCats,
         catOf: function(e) {
             return catOf(e)
         }
@@ -573,7 +571,7 @@ function lhAuthRedirect() {
             t && t.name_key && t.subsection && (w.subcats[t.name_key] = t.subsection)
         })
     }
-    async function C() {
+    async function lhBootstrap() {
         var e = await _().rpc("lh_bootstrap");
         if (e.error) throw e.error;
         return e.data
@@ -592,7 +590,7 @@ function lhAuthRedirect() {
                 }(t);
             n && n.member && (E(n), y("app"), se(), d("cachedUI"), g("Syncing…"));
             try {
-                var a = await C();
+                var a = await lhBootstrap();
                 if (d("bootstrap"), !a || !a.member) return await _().auth.signOut(), y("gate"), void v("This email isn’t on the Pollock household. Ask Chris to add you.");
                 E(a), L(t, a), w.loadedAt = Date.now(), a.member.user_id || _().rpc("lh_claim_member").then(function() {}, function() {}), await hydrateExtras(), y("app"), se(), g(""), d("signedIn"), P(), H()
             } catch (e) {
@@ -607,7 +605,7 @@ function lhAuthRedirect() {
     }
     async function O() {
         try {
-            var e = await C();
+            var e = await lhBootstrap();
             e && e.member && (E(e), L(p(w.session.user.email), e), w.loadedAt = Date.now(), await hydrateExtras(), se())
         } catch (e) {
             g(e.message || "Refresh failed", !0)
@@ -806,7 +804,7 @@ function lhAuthRedirect() {
     }
 
     function catOf(e) {
-        return C.resolveItem(e || {}, catCacheFor(e && e.name))
+        return LHCats.resolveItem(e || {}, catCacheFor(e && e.name))
     }
 
     function rememberCat(name, resolved) {
@@ -845,28 +843,28 @@ function lhAuthRedirect() {
     }
 
     function F(e) {
-        var t = C.classify(e);
+        var t = LHCats.classify(e);
         return t.unknown ? null : t.category
     }
 
     function V(e, t) {
         var n = p(e);
-        if (w.cats[n] || w.subcats[n]) return C.fromStored(w.cats[n], w.subcats[n], e, {
+        if (w.cats[n] || w.subcats[n]) return LHCats.fromStored(w.cats[n], w.subcats[n], e, {
             source: "cache"
         });
         var a = w.history.find(function(e) {
             return e.name_key === n && (e.category || e.subsection)
         });
-        if (a) return C.fromStored(a.category, a.subsection, e, {
+        if (a) return LHCats.fromStored(a.category, a.subsection, e, {
             source: "cache"
         });
-        if (t && (t.category || t.section || t.subsection || t.text)) return C.classify(e, {
+        if (t && (t.category || t.section || t.subsection || t.text)) return LHCats.classify(e, {
             section: t.section || t.category,
             subsection: t.subsection,
             text: t.text,
             source: "barcode"
         });
-        return C.classify(e)
+        return LHCats.classify(e)
     }
     var Z = [],
         G = null;
@@ -912,7 +910,7 @@ function lhAuthRedirect() {
                     e.forEach(function(e, t) {
                         var n = i.results[t];
                         if (n && (n.category || n.section)) {
-                            var r = C.fromAI(n, e.name);
+                            var r = LHCats.fromAI(n, e.name);
                             rememberCat(e.name, r);
                             var a = w.items.find(function(t) {
                                 return t.id === e.id
@@ -1066,7 +1064,7 @@ function lhAuthRedirect() {
     }
 
     function re(e) {
-        return C.groupItems(e, catOf)
+        return LHCats.groupItems(e, catOf)
     }
 
     function oe(e) {
@@ -1113,7 +1111,7 @@ function lhAuthRedirect() {
             });
             var d = l("#items");
             if (n.length) {
-                d.innerHTML = C.renderGroups(o, oe, catOf) + (o.length ? "" : '<div class="empty">All done here.</div>') + (s.length ? '<section class="group"><div class="group-title"><span>Got it · ' + s.length + '</span><button class="btn ghost sm" id="clear-done" type="button">Clear</button></div>' + s.map(oe).join("") + "</section>" : ""), u("#items .item").forEach(function(e) {
+                d.innerHTML = LHCats.renderGroups(o, oe, catOf) + (o.length ? "" : '<div class="empty">All done here.</div>') + (s.length ? '<section class="group"><div class="group-title"><span>Got it · ' + s.length + '</span><button class="btn ghost sm" id="clear-done" type="button">Clear</button></div>' + s.map(oe).join("") + "</section>" : ""), u("#items .item").forEach(function(e) {
                     var t = w.items.find(function(t) {
                         return t.id === e.dataset.id
                     });
@@ -1144,9 +1142,9 @@ function lhAuthRedirect() {
                         n && n.stopPropagation && n.stopPropagation();
                         var e = t,
                             cur = catOf(e);
-                        U('<div class="modal-top"><strong>Category for “' + h(e.name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div>' + C.pickerHtml(cur) + '<p class="hint">Optional — we’ll remember this for next time. You never have to set it.</p>'), u("#sheet [data-section]").forEach(function(t) {
+                        U('<div class="modal-top"><strong>Category for “' + h(e.name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div>' + LHCats.pickerHtml(cur) + '<p class="hint">Optional — we’ll remember this for next time. You never have to set it.</p>'), u("#sheet [data-section]").forEach(function(t) {
                             t.onclick = async function() {
-                                var resolved = C.fromStored(t.dataset.section, t.dataset.sub || "", e.name, {
+                                var resolved = LHCats.fromStored(t.dataset.section, t.dataset.sub || "", e.name, {
                                     trustSection: !0,
                                     source: "user"
                                 });
@@ -1264,7 +1262,7 @@ function lhAuthRedirect() {
                                     name: n.name,
                                     qty: n.qty,
                                     category: cat.category,
-                                    sort_order: 100 * C.sortIndex(cat.section, cat.subsection) + t
+                                    sort_order: 100 * LHCats.sortIndex(cat.section, cat.subsection) + t
                                 };
                                 return w.hasSubcol && (row.subsection = cat.subsection || ""), row
                             });
@@ -1288,7 +1286,7 @@ function lhAuthRedirect() {
                 o = t.items.filter(function(e) {
                     return e.checked
                 }).length,
-                s = C.groupItems(t.items, catOf);
+                s = LHCats.groupItems(t.items, catOf);
             var c = t.export_target || (Y(t.store_id) || {}).app_hint;
             U('<div class="modal-top"><strong>🛒 ' + h(t.store_name) + ' trip</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint" style="margin-top:0" id="trip-count">' + o + " of " + n + " in the cart. Tap items as you grab them.</p>" + s.map(function(e) {
                 return '<div class="group-title"><span>' + e.emoji + " " + h(e.section) + "</span></div>" + e.subs.map(function(sub) {
@@ -1752,7 +1750,7 @@ function lhAuthRedirect() {
             if (n && n.found) {
                 var a = [n.name, n.brand, n.quantity].filter(Boolean).join(" · ").trim() || "Product " + e,
                     i = n.source || "",
-                    r = C.barcodeHint(n);
+                    r = LHCats.barcodeHint(n);
                 w.pending.hint = {
                     category: r.category,
                     section: r.section,
