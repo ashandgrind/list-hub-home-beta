@@ -512,7 +512,7 @@ function lhAuthRedirect() {
         pending: null
     };
     window.__lh = {
-        version: "lh6.2",
+        version: "lh6.3",
         S: w,
         T: c,
         cats: window.LHCats,
@@ -574,6 +574,7 @@ function lhAuthRedirect() {
     async function lhBootstrap() {
         var e = await _().rpc("lh_bootstrap");
         if (e.error) throw e.error;
+        setTimeout(loadRepurchase, 0);
         return e.data
     }
     async function x(e) {
@@ -1002,6 +1003,7 @@ function lhAuthRedirect() {
                         category_source: r.source,
                         barcode: i.barcode || null
                     };
+                    i.notes && (s.notes = String(i.notes).slice(0, 500));
                     w.hasSubcol && (s.subsection = r.subsection || "");
                     rememberCat(i.name, r);
                 var c = await _().from("lh_items").insert(s).select("*").single();
@@ -1012,9 +1014,14 @@ function lhAuthRedirect() {
                     g(c.error.message, !0);
                     break
                 }
+                var rpx = "needs" === w.kind && rpFor(i.name);
+                rpx && rpx.probably_have && (rpSignal(i.name, i.signalKind || "add"), i.signaled = !0);
                 w.items.push(c.data), n.push(c.data), ("local" === r.source || "barcode" === r.source && i.hint && i.hint.text) && J(c.data, i.hint && i.hint.text), ae(i.name, o)
             }
         }
+        e.some(function(i) {
+            return i.signaled
+        }) && setTimeout(loadRepurchase, 800);
         return se(), n.length && (g(""), f("Added " + (1 === n.length ? "“" + n[0].name + "”" : n.length + " items"))), n
     }
 
@@ -1075,7 +1082,7 @@ function lhAuthRedirect() {
             q = currentRequest(e.id),
             z = requestBadge(q);
         var cat = catOf(e);
-        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (cat.subEmoji || cat.emoji || "📦") + " " + h(o ? cat.label : cat.chip || cat.section) + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div></div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
+        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (cat.subEmoji || cat.emoji || "📦") + " " + h(o ? cat.label : cat.chip || cat.section) + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div>' + rpLine(e) + '</div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
     }
 
     function se() {
@@ -1095,7 +1102,7 @@ function lhAuthRedirect() {
                 e.onclick = function() {
                     le(e.dataset.trip)
                 }
-            }), l("#plan-bar").classList.toggle("hidden", "needs" !== w.kind);
+            }), l("#plan-bar").classList.toggle("hidden", "needs" !== w.kind); l("#recipe-btn") && l("#recipe-btn").classList.toggle("hidden", "needs" !== w.kind);
             var n = K(w.kind),
                 o = n.filter(function(e) {
                     return "needed" === e.status
@@ -1123,7 +1130,7 @@ function lhAuthRedirect() {
                                 status: t,
                                 updated_at: (new Date).toISOString()
                             }).eq("id", e.id);
-                            n.error && g(n.error.message, !0)
+                            n.error ? g(n.error.message, !0) : setTimeout(loadRepurchase, 500)
                         }(t)
                     }, e.querySelector('[data-act="del"]').onclick = function() {
                         !async function(e) {
@@ -1385,11 +1392,259 @@ function lhAuthRedirect() {
             }
         }()
     }
+
+    /* ---------- Recipe link import: link/text -> preview sheet -> normal add path ---------- */
+    var rcState = null;
+
+    function isLinkOnly(v) {
+        return /^\s*(https?:\/\/|www\.)[^\s]+\s*$/i.test(v || "")
+    }
+
+    var rpMap = null;
+    async function loadRepurchase() {
+        try {
+            var r = await _().rpc("lh_repurchase");
+            if (r.error || !Array.isArray(r.data)) return;
+            var m = {};
+            r.data.forEach(function(x) {
+                var k = x && rcNorm(x.name_key || x.name);
+                k && (!m[k] || m[k].last_purchased_at < x.last_purchased_at) && (m[k] = x)
+            });
+            rpMap = m, window.__lh.repurchase = m, w.member && se()
+        } catch (e) {}
+    }
+
+    function rpFor(name) {
+        if (!rpMap) return null;
+        var n = rcNorm(name);
+        if (!n) return null;
+        if (rpMap[n]) return rpMap[n];
+        var best = null;
+        Object.keys(rpMap).forEach(function(m) {
+            m.length >= 5 && (" " + n).slice(-(m.length + 1)) === " " + m && (!best || m.length > best.length) && (best = m)
+        });
+        return best ? rpMap[best] : null
+    }
+
+    function rpAgo(x) {
+        var d = Math.max(0, Math.floor((Date.now() - new Date(x.last_purchased_at).getTime()) / 864e5));
+        return 0 === d ? "today" : 1 === d ? "yesterday" : d < 14 ? d + " days ago" : d < 60 ? Math.round(d / 7) + " weeks ago" : Math.round(d / 30) + " months ago"
+    }
+
+    function rpSpan(days) {
+        var d = +days || 0;
+        return d < 14 ? "~" + Math.max(1, Math.round(d)) + " day" + (Math.round(d) > 1 ? "s" : "") : d < 60 ? "~" + Math.round(d / 7) + " weeks" : d < 330 ? "~" + Math.round(d / 30) + " months" : "~" + Math.round(d / 365 * 10) / 10 + " years"
+    }
+
+    function rpLine(e) {
+        if ("wish" === w.kind || "needed" !== e.status) return "";
+        var x = rpFor(e.name);
+        if (!x || !x.last_purchased_at) return "";
+        var dt = new Date(x.last_purchased_at),
+            s = "Last bought " + dt.toLocaleDateString(void 0, {
+                month: "short",
+                day: "numeric"
+            }) + (x.confident && +x.interval_days >= 1 ? " · usually lasts " + rpSpan(x.interval_days) : "");
+        return '<div class="item-last">' + h(s) + "</div>"
+    }
+
+    function rpSignal(name, kind) {
+        _().rpc("lh_repurchase_signal", {
+            p_name: name,
+            p_kind: kind || "add"
+        }).then(function() {}, function() {})
+    }
+
+    function rcNorm(e) {
+        return p(e).replace(/[^a-z0-9 ]+/g, " ").replace(/\b(fresh|freshly|large|small|medium|ripe|organic|boneless|skinless|whole)\b/g, " ").replace(/\s+/g, " ").trim().replace(/(ies)$/, "y").replace(/(oes|ches|shes|ses|xes)$/, function(m) {
+            return m.slice(0, -2)
+        }).replace(/([^s])s$/, "$1")
+    }
+
+    function rcOnList(name) {
+        var n = rcNorm(name);
+        if (!n) return null;
+        return $("needs").find(function(e) {
+            var m = rcNorm(e.name);
+            return m && (m === n || m.length >= 5 && (" " + n).slice(-(m.length + 1)) === " " + m)
+        }) || null
+    }
+
+    function rcQty(x) {
+        var q = String(x.quantity || "").trim(),
+            un = String(x.unit || "").trim();
+        un && q.toLowerCase().indexOf(un.toLowerCase()) < 0 && (q = q ? q + " " + un : "");
+        return q.slice(0, 40)
+    }
+
+    function openRecipe(prefill, autostart) {
+        if ("needs" !== w.kind) {
+            w.kind = "needs";
+            try {
+                localStorage.setItem("lh5-kind", "needs")
+            } catch (e) {}
+            se()
+        }
+        rcState && rcState.ctl && rcState.ctl.abort();
+        rcState = {
+            step: "input",
+            input: prefill || "",
+            data: null,
+            picked: [],
+            err: "",
+            seq: 0,
+            ctl: null
+        };
+        rcRender();
+        autostart && prefill && rcFetch()
+    }
+
+    function rcClose() {
+        rcState && rcState.ctl && rcState.ctl.abort();
+        rcState = null;
+        N()
+    }
+
+    function rcRender() {
+        var r = rcState;
+        if (!r) return;
+        var top = '<div class="modal-top"><strong>🍳 Add from a recipe</strong><button class="btn ghost sm" type="button" id="rc-close">Close</button></div>';
+        if ("input" === r.step) {
+            U(top + '<textarea id="rc-in" class="rc-input" rows="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste a recipe link (website, YouTube, X, TikTok…) — or paste the recipe text">' + h(r.input) + "</textarea>" + (r.err ? '<p class="error" id="rc-err">' + h(r.err) + "</p>" : "") + '<p class="hint">You’ll see the ingredients first — nothing is added until you tap Add.</p><div class="sheet-foot"><button class="btn primary" type="button" id="rc-go">Get ingredients</button></div>');
+            var ta = l("#rc-in");
+            l("#rc-go").onclick = function() {
+                r.input = ta.value.trim();
+                if (!r.input) return r.err = "Paste a link or the recipe text first.", void rcRender();
+                rcFetch()
+            };
+            setTimeout(function() {
+                ta && !r.input && ta.focus()
+            }, 60)
+        } else if ("loading" === r.step) {
+            U(top + '<div class="rc-loading"><div class="spin"></div><div id="rc-msg">Reading the recipe…</div><p class="hint" style="margin-top:8px">YouTube videos and some sites can take up to a minute.</p></div><div class="sheet-foot"><button class="btn ghost" type="button" id="rc-cancel">Cancel</button></div>');
+            l("#rc-cancel").onclick = function() {
+                r.ctl && r.ctl.abort(), r.step = "input", r.err = "", rcRender()
+            }
+        } else if ("preview" === r.step) {
+            var d = r.data,
+                n = r.picked.filter(Boolean).length,
+                onCount = d.ingredients.filter(function(x) {
+                    return x._on
+                }).length,
+                src = d.source_url ? '<a href="' + h(d.source_url) + '" target="_blank" rel="noopener">' + h(d.title || "Recipe") + "</a>" : h(d.title || "Recipe");
+            U(top + '<div class="rc-title" id="rc-title">' + src + '</div><div class="rc-sub">' + d.ingredients.length + " ingredient" + (1 === d.ingredients.length ? "" : "s") + (d.servings ? " · serves " + h(d.servings) : "") + (onCount ? " · " + onCount + " already on your List" : "") + '</div><div class="rc-tools"><button type="button" class="chip-btn" id="rc-all">Select all</button><button type="button" class="chip-btn" id="rc-none">Select none</button></div><div class="rc-list" id="rc-list">' + d.ingredients.map(function(x, i) {
+                var q = rcQty(x);
+                return '<div class="pick' + (r.picked[i] ? "" : " off") + '" data-rc="' + i + '"><span class="check-btn' + (r.picked[i] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(x.name) + '</div><div class="item-meta">' + (q ? '<span class="badge">' + h(q) + "</span>" : "") + (x.note ? "<span>" + h(x.note) + "</span>" : "") + (x.staple ? '<span class="badge staple">Pantry staple</span>' : "") + (x._on ? '<span class="badge onlist">Already on List</span>' : "") + (x._have ? '<span class="badge bought">Bought ' + h(x._ago) + "</span>" : "") + "</div></div></div>"
+            }).join("") + '</div><div class="sheet-foot"><button class="btn primary" type="button" id="rc-add"' + (n ? "" : " disabled") + ">" + (n ? "Add " + n + " item" + (1 === n ? "" : "s") + " to List" : "Pick items to add") + '</button><button class="btn ghost sm" type="button" id="rc-back" style="justify-self:center">Try a different link</button></div>');
+            u("#sheet [data-rc]").forEach(function(el) {
+                el.onclick = function() {
+                    var i = +el.dataset.rc;
+                    r.picked[i] = !r.picked[i], rcRender()
+                }
+            });
+            l("#rc-all").onclick = function() {
+                r.picked = d.ingredients.map(function() {
+                    return !0
+                }), rcRender()
+            };
+            l("#rc-none").onclick = function() {
+                r.picked = d.ingredients.map(function() {
+                    return !1
+                }), rcRender()
+            };
+            l("#rc-back").onclick = function() {
+                r.step = "input", r.err = "", rcRender()
+            };
+            l("#rc-add").onclick = rcAdd
+        }
+        var c = l("#rc-close");
+        c && (c.onclick = rcClose)
+    }
+    async function rcFetch() {
+        var r = rcState;
+        if (!r) return;
+        var my = ++r.seq;
+        r.step = "loading", r.err = "", rcRender();
+        var slow = setTimeout(function() {
+                var m = l("#rc-msg");
+                m && rcState === r && my === r.seq && (m.textContent = "Still reading — checking the page / video description…")
+            }, 9e3),
+            out = null,
+            fail = "";
+        try {
+            var tok = await S();
+            if (!tok) throw new Error("Please sign in again.");
+            r.ctl = "undefined" != typeof AbortController ? new AbortController : null;
+            var killer = setTimeout(function() {
+                    r.ctl && r.ctl.abort()
+                }, 12e4),
+                body = isLinkOnly(r.input) ? {
+                    url: r.input.trim()
+                } : {
+                    text: r.input
+                },
+                res = await fetch(t + "/functions/v1/lh-recipe-import", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer " + tok,
+                        apikey: n,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(body),
+                    signal: r.ctl ? r.ctl.signal : void 0
+                });
+            clearTimeout(killer);
+            out = await res.json().catch(function() {
+                return null
+            });
+            if (!res.ok && !(out && out.message)) throw new Error("Server error " + res.status);
+            window.__lh.lastRecipe = out
+        } catch (e) {
+            fail = e && "AbortError" === e.name ? "That took too long — try again, or paste the recipe text." : String(e && e.message || e)
+        }
+        clearTimeout(slow);
+        if (rcState !== r || my !== r.seq || "loading" !== r.step) return;
+        if (!fail && out && out.error) fail = out.message || "Couldn’t read that recipe. Paste the recipe text instead.";
+        if (!fail && !(out && out.ingredients && out.ingredients.length)) fail = "No ingredients found. Paste the recipe text instead.";
+        if (fail) return r.step = "input", r.err = fail, void rcRender();
+        out.ingredients.forEach(function(x) {
+            x._on = !!rcOnList(x.name);
+            var rp = !x._on && rpFor(x.name);
+            x._have = !!(rp && rp.probably_have), x._ago = x._have ? rpAgo(rp) : ""
+        });
+        r.data = out, r.picked = out.ingredients.map(function(x) {
+            return !x.staple && !x._on && !x._have
+        }), r.step = "preview", rcRender()
+    }
+    async function rcAdd() {
+        var r = rcState;
+        if (!r || !r.data) return;
+        var d = r.data,
+            items = d.ingredients.filter(function(x, i) {
+                return r.picked[i]
+            }).map(function(x) {
+                return {
+                    name: x.name,
+                    qty: rcQty(x) || null,
+                    signalKind: x._have ? "recipe_recheck" : "add",
+                    notes: [x.note, "Recipe: " + (d.title || "recipe"), d.source_url].filter(Boolean).join(" · ")
+                }
+            });
+        if (!items.length) return;
+        var b = l("#rc-add");
+        b && (b.disabled = !0, b.textContent = "Adding " + items.length + "…");
+        "needs" !== w.kind && (w.kind = "needs", se());
+        var added = await ne(items);
+        rcState = null, N();
+        added && added.length && f("Added " + added.length + " item" + (1 === added.length ? "" : "s") + " from “" + (d.title || "recipe") + "”", 4500)
+    }
+    window.__lh.openRecipe = openRecipe;
     l("#add-form").onsubmit = async function(e) {
         e && e.preventDefault();
         var t = l("#item-name"),
             n = t.value.trim();
         if (!n) return t.focus();
+        if ("needs" === w.kind && isLinkOnly(n)) return t.value = "", l("#recipe-chip").classList.add("hidden"), l("#suggest-chips").classList.add("hidden"), void openRecipe(n, !0);
         var a = l("#item-store").value;
         "__add__" === a && (a = "");
         var i = {
@@ -1407,7 +1662,24 @@ function lhAuthRedirect() {
             var e = await te(prompt("New store name?"));
             this.innerHTML = ee(e ? e.id : ""), this.value = e ? e.id : ""
         }
+    }), l("#recipe-btn").onclick = function() {
+        var v = l("#item-name").value.trim();
+        isLinkOnly(v) ? (l("#item-name").value = "", l("#recipe-chip").classList.add("hidden"), openRecipe(v, !0)) : openRecipe("")
+    }, l("#item-name").addEventListener("paste", function() {
+        var el = this;
+        setTimeout(function() {
+            var v = el.value.trim();
+            "needs" === w.kind && isLinkOnly(v) && (el.value = "", l("#recipe-chip").classList.add("hidden"), l("#suggest-chips").classList.add("hidden"), el.blur(), openRecipe(v, !0))
+        }, 0)
     }), l("#item-name").addEventListener("input", function() {
+        (function(v) {
+            var c = l("#recipe-chip");
+            if ("needs" !== w.kind || !isLinkOnly(v)) return c.classList.add("hidden"), void(c.innerHTML = "");
+            c.innerHTML = '<button type="button" class="chip-btn confirm" id="recipe-chip-btn">🍳 Get the recipe’s ingredients from this link</button>', c.classList.remove("hidden"), l("#recipe-chip-btn").onclick = function() {
+                var u2 = l("#item-name").value.trim();
+                l("#item-name").value = "", c.classList.add("hidden"), openRecipe(u2, !0)
+            }
+        })(this.value);
         ie(this.value),
             function(e) {
                 var t = l("#split-chip"),

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f1419">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>List Hub</title>
-  <meta name="list-hub-build" content="lh6-two-level-cats">
+  <meta name="list-hub-build" content="lh6-recipe-import">
   <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co" crossorigin>
   <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co">
   <link rel="stylesheet" href="styles.css">
@@ -102,7 +102,11 @@
       <div id="suggest-chips" class="chips hidden"></div>
       <div id="voice-confirm" class="chips hidden"></div>
       <div id="split-chip" class="chips hidden"></div>
-      <button type="button" class="more-toggle" id="more-toggle">＋ qty / store / discreet (optional)</button>
+      <div id="recipe-chip" class="chips hidden"></div>
+      <div class="add-extras">
+        <button type="button" class="more-toggle" id="more-toggle">＋ qty / store / discreet (optional)</button>
+        <button type="button" class="recipe-btn" id="recipe-btn">🍳 Add from recipe link</button>
+      </div>
       <div id="more-row" class="more-row hidden">
         <input id="item-qty" type="text" placeholder="Qty">
         <select id="item-store"></select>
