@@ -320,7 +320,7 @@
       /* bootstrap cats is still name -> legacy section string */
       category = category || cached;
     }
-    if (item && item.category_source === "user") {
+    if (item && item.category_source === "user" && subsection) {
       return fromStored(category, subsection, item.name, { trustSection: true, source: "user" });
     }
     if (subsection) return fromStored(category, subsection, item.name);

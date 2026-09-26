@@ -53,8 +53,11 @@ const foodSubs = grouped.find((g) => g.section === "Food").subs.map((s) => s.nam
 assert.ok(!foodSubs.includes("Deli"), "empty Deli hidden");
 assert.ok(foodSubs.indexOf("Frozen") === -1 || foodSubs.indexOf("Frozen") > foodSubs.indexOf("Produce"), "Frozen after Produce");
 
-const user = C.resolveItem({ name: "Traeger Woodbridge elite", category: "Household", category_source: "user" });
-assert.equal(user.section, "Household", "user correction is kept");
+const legacyUser = C.resolveItem({ name: "Traeger Woodbridge elite", category: "Household", category_source: "user" });
+assert.equal(legacyUser.section, "Outdoor & Sports", "legacy section-only user tag can move to a better new section");
+const user = C.resolveItem({ name: "Traeger Woodbridge elite", category: "Household", subsection: "Home & Garden", category_source: "user" });
+assert.equal(user.section, "Household", "explicit aisle correction is kept");
+assert.equal(user.subsection, "Home & Garden", "explicit aisle correction is kept");
 
 const html = C.renderGroups(
   [{ id: "1", name: "Eggs" }, { id: "2", name: "Chicken" }],

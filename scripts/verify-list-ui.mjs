@@ -22,6 +22,8 @@ const preview = `<!DOCTYPE html>
 <body>
   <h1>List</h1>
   <main id="items" class="items"></main>
+  <h1 style="margin-top:28px">Wishlist chips</h1>
+  <main id="wish" class="items"></main>
   <script src="${cats}"></script>
   <script>
     window.__previewErrors = [];
@@ -48,6 +50,9 @@ const preview = `<!DOCTYPE html>
         (cat.subEmoji || cat.emoji) + " " + (cat.chip || cat.section) + "</span></div></div></article>";
     }
     document.getElementById("items").innerHTML = LHCats.renderGroups(items, renderItem);
+    document.getElementById("wish").innerHTML = '<article class="item wish-item"><div class="item-body"><div class="item-name">New PC</div><div class="item-meta"><span class="badge cat">' +
+      (function () { var c = LHCats.classify("New PC"); return (c.emoji || "") + " " + c.label; })() +
+      "</span></div></div></article>";
     window.__previewReady = true;
     window.__previewGroups = LHCats.groupItems(items);
   </script>
@@ -100,6 +105,7 @@ async function run(browserType, name) {
   }
   if (!info.groups.length) errors.push(name + ": no groups");
   const food = info.groups.find((g) => g.section === "Food");
+  if (!info.groups.find((g) => g.section === "Outdoor & Sports")) errors.push(name + ": missing Outdoor & Sports (Traeger)");
   if (!food) errors.push(name + ": missing Food section");
   else {
     if (!food.subs.some((s) => /Produce/i.test(s))) errors.push(name + ": Produce subhead missing");
