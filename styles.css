@@ -485,6 +485,29 @@ body:has(#sheet:not(.hidden)) .toast {
     align-items: center
 }
 
+.subhead {
+    color: var(--muted);
+    font-size: .72rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 650;
+    padding: 8px 4px 2px;
+    margin-top: 2px
+}
+
+.cat-sec {
+    margin-bottom: 14px
+}
+
+.cat-sec-title {
+    color: var(--accent);
+    font-size: .75rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 4px 2px 8px
+}
+
 .item {
     background: var(--card);
     border: 1px solid var(--line);

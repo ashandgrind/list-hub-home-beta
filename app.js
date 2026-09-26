@@ -7,18 +7,22 @@ function lhAuthRedirect() {
     var e, t = "https://dphkvcdohqsvefbdhsfx.supabase.co",
         n = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGt2Y2RvaHFzdmVmYmRoc2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5OTcxMjIsImV4cCI6MjA5OTU3MzEyMn0.Ts8vvKm8VuOYCgmtKxNQe71Ga2qjUH5jiCSlOe9vxSo",
         a = "a0000000-0000-4000-8000-000000000001",
-        i = ["Food", "Household", "Personal care", "Health", "Electronics", "Pets", "Baby", "Hardware", "Clothing", "Other"],
+        C = window.LHCats,
+        i = C.LEGACY_SECTIONS,
         r = {
             Food: "🍎",
             Household: "🧻",
             "Personal care": "🧴",
+            "Personal Care": "🧴",
             Health: "💊",
-            Electronics: "🔋",
+            Electronics: "⚡",
             Pets: "🐾",
             Baby: "🍼",
             Hardware: "🔧",
             Clothing: "👕",
-            Other: "📦"
+            Other: "📦",
+            "Outdoor & Sports": "🚴",
+            Auto: "🚗"
         },
         o = "lh5-snap",
         s = window.__lhBoot || {
@@ -231,6 +235,18 @@ function lhAuthRedirect() {
             })
         } catch (e) {}
         try {
+            var sub = await _().from("lh_items").select("id,subsection");
+            if (!sub.error && sub.data) {
+                w.hasSubcol = !0;
+                sub.data.forEach(function(e) {
+                    var t = w.items.find(function(t) {
+                        return t.id === e.id
+                    });
+                    t && (t.subsection = e.subsection || t.subsection || "")
+                })
+            }
+        } catch (e) {}
+        try {
             var t = await _().from("lh_finds").select("*");
             if (!t.error) {
                 w.finds = t.data || [];
@@ -282,7 +298,7 @@ function lhAuthRedirect() {
         function p(e, t) {
             return '<div class="detail-row"><span class="detail-k">' + h(e) + '</span><span class="detail-v">' + t + "</span></div>"
         }
-        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((r[e.category] || "📦") + " " + (e.category || "Other"))) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
+        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((catOf(e).emoji || "📦") + " " + catOf(e).label)) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
             return '<a href="' + h(e.url) + '" target="_blank" rel="noopener">' + h(e.label || e.url) + "</a>"
         }).join("") + "</div>" : "") + '<button class="btn primary" type="submit" id="wish-save">Save details</button></form><div class="finds-block"><div class="group-title"><span>Finds · ' + t.length + "</span></div>" + (t.length ? t.map(function(e) {
             var t = e.found_by_kind === "assistant" || /shopping\s*buddy/i.test(e.found_by || "") ? "Shopping Buddy" : e.found_by && !/^unknown$/i.test(e.found_by) ? e.found_by : "",
@@ -487,6 +503,8 @@ function lhAuthRedirect() {
         history: [],
         prefs: [],
         cats: {},
+        subcats: {},
+        hasSubcol: false,
         trips: [],
         finds: [],
         findsByItem: {},
@@ -496,9 +514,13 @@ function lhAuthRedirect() {
         pending: null
     };
     window.__lh = {
-        version: "lh6.1",
+        version: "lh6.2",
         S: w,
-        T: c
+        T: c,
+        cats: C,
+        catOf: function(e) {
+            return catOf(e)
+        }
     };
     var k = null;
 
@@ -543,7 +565,13 @@ function lhAuthRedirect() {
     }
 
     function E(e) {
-        w.member = e.member, w.stores = e.stores || [], w.lists = e.lists || [], w.items = e.items || [], w.history = e.history || [], w.prefs = e.prefs || [], w.cats = e.cats || {}, w.trips = e.trips || [], w.displayName = e.member && e.member.display_name || "Member", w.who = p(w.displayName) || "chris"
+        w.member = e.member, w.stores = e.stores || [], w.lists = e.lists || [], w.items = e.items || [], w.history = e.history || [], w.prefs = e.prefs || [], w.cats = e.cats || {}, w.subcats = e.subcats || {}, w.trips = e.trips || [], w.displayName = e.member && e.member.display_name || "Member", w.who = p(w.displayName) || "chris";
+        if ((e.items || []).some(function(t) {
+                return t && Object.prototype.hasOwnProperty.call(t, "subsection")
+            })) w.hasSubcol = !0;
+        (e.history || []).forEach(function(t) {
+            t && t.name_key && t.subsection && (w.subcats[t.name_key] = t.subsection)
+        })
     }
     async function C() {
         var e = await _().rpc("lh_bootstrap");
@@ -767,47 +795,78 @@ function lhAuthRedirect() {
     }, l("#sheet").addEventListener("click", function(e) {
         e.target === this && N()
     });
-    var B = [
-        ["Pets", /\b(dog|dogs|puppy|cat|cats|kitten|kitty|pet|pets|litter|kibble|flea|chew toy|bird ?seed|fish food|aquarium|leash|collar|purina|friskies|meow mix|pedigree|milk-bone|greenies)\b/],
-        ["Baby", /\b(baby|babies|diaper|diapers|wipes|formula|pacifier|infant|toddler|onesie|sippy|pampers|huggies|teether)\b/],
-        ["Health", /\b(medicine|meds|tylenol|advil|ibuprofen|acetaminophen|aspirin|allergy|claritin|zyrtec|benadryl|vitamins?|multivitamin|band-?aids?|bandages?|first aid|thermometer|cough|nyquil|dayquil|antacid|tums|pepto|prescription|isopropyl|rubbing alcohol|hydrogen peroxide|neosporin|melatonin|probiotic|contact solution|covid test|gauze)\b/],
-        ["Personal care", /\b(shampoo|conditioner|soap|body wash|toothpaste|toothbrush|floss|mouthwash|deodorant|antiperspirant|razors?|shaving|lotion|moisturizer|sunscreen|makeup|mascara|lipstick|lip balm|chapstick|tampons?|feminine|q-?tips|cotton swabs|cotton balls|hair gel|hairspray|hair ties|nail polish|perfume|cologne|face wash|cleanser|dry shampoo|dove|olay|colgate|crest|gillette|old spice)\b/],
-        ["Electronics", /\b(batter(y|ies)|aa|aaa|9v|charger|charging|cable|usb|usb-c|lightning cable|hdmi|headphones|earbuds|airpods|phone case|power bank|adapter|smart plug|sd card|memory card|flash drive|mouse|keyboard|printer ink|ink cartridge|toner|remote|duracell|energizer)\b/],
-        ["Hardware", /\b(screws?|nails|bolts?|drill|hammer|wrench|screwdriver|pliers|tape measure|duct tape|electrical tape|super glue|caulk|paint|primer|sandpaper|wd-?40|zip ties|hose|mulch|fertilizer|potting soil|seeds|weed killer|lawn|garden|extension cord|air filter|furnace filter|motor oil|wiper|antifreeze|ladder|hinge|anchors)\b/],
-        ["Clothing", /\b(socks?|shirts?|t-shirts?|tees?|pants|jeans|shorts|underwear|boxers|bras?|dress|skirt|jacket|coat|hoodie|sweater|shoes|sneakers|boots|sandals|slippers|hat|gloves|scarf|belt|pajamas|leggings|swimsuit)\b/],
-        ["Household", /\b(paper towels?|toilet paper|tissues?|kleenex|napkins|trash bags?|garbage bags?|dish soap|dishwasher|detergent|laundry|fabric softener|dryer sheets|bleach|cleaner|lysol|clorox|windex|sponges?|mop|broom|swiffer|vacuum|aluminum foil|foil|plastic wrap|saran|ziploc|zip-?lock|sandwich bags|storage bags|parchment|wax paper|light ?bulbs?|candles?|air freshener|febreze|matches|lighter|paper plates|plastic cups|cutlery|tide|downy|bounty|charmin|cascade|dawn|glad|hefty|oxiclean|magic eraser)\b/],
-        ["Food", /\b(milk|eggs?|bread|butter|cheese|yogurt|yoghurt|cream|juice|coffee|tea|water|soda|beer|wine|seltzer|banana|bananas|apples?|oranges?|lemons?|limes?|grapes|berries|strawberr(y|ies)|blueberr(y|ies)|avocados?|tomato(es)?|potato(es)?|onions?|garlic|lettuce|spinach|kale|carrots?|celery|broccoli|peppers?|cucumbers?|mushrooms?|corn|beans|rice|pasta|spaghetti|noodles|flour|sugar|salt|olive oil|oil|vinegar|ketchup|mustard|mayo|mayonnaise|sauce|salsa|chips|crackers|cookies|cereal|oats|oatmeal|granola|snacks?|nuts|peanut butter|jelly|jam|honey|syrup|chicken|beef|steak|pork|bacon|sausage|ham|turkey|fish|salmon|tuna|shrimp|tofu|frozen|pizza|ice cream|soup|broth|spices?|cinnamon|vanilla|bagels?|tortillas?|buns|muffins|cake|chocolate|candy|gum|popcorn|pretzels|hummus|deli|lunch meat|fruit|veggies|vegetables|produce|creamer|half and half|sour cream|cottage cheese|kombucha|gatorade|coke|pepsi|sprite|la croix)\b/]
-    ];
+    function catCacheFor(name) {
+        var n = p(name),
+            o = {};
+        if (w.cats[n] || w.subcats[n]) o[n] = {
+            category: w.cats[n],
+            subsection: w.subcats[n] || ""
+        };
+        return o
+    }
+
+    function catOf(e) {
+        return C.resolveItem(e || {}, catCacheFor(e && e.name))
+    }
+
+    function rememberCat(name, resolved) {
+        var n = p(name);
+        n && resolved && (w.cats[n] = resolved.category || resolved.legacy, w.subcats[n] = resolved.subsection || "")
+    }
+
+    function applyResolved(item, resolved, source) {
+        item.category = resolved.category || resolved.legacy;
+        item.subsection = resolved.subsection || "";
+        item.category_source = source || resolved.source;
+        rememberCat(item.name, resolved)
+    }
+
+    function itemCatPatch(resolved, source) {
+        var o = {
+            category: resolved.category || resolved.legacy,
+            category_source: source || resolved.source,
+            updated_at: (new Date).toISOString()
+        };
+        return w.hasSubcol && (o.subsection = resolved.subsection || ""), o
+    }
+
+    function cacheUpsert(name, resolved, source) {
+        var row = {
+            household_id: a,
+            name_key: p(name),
+            category: resolved.category || resolved.legacy,
+            source: source || resolved.source || "local",
+            updated_at: (new Date).toISOString()
+        };
+        w.hasSubcol && (row.subsection = resolved.subsection || "");
+        _().from("lh_category_cache").upsert(row, {
+            onConflict: "household_id,name_key"
+        }).then(function() {}, function() {})
+    }
 
     function F(e) {
-        for (var t = " " + p(e) + " ", n = 0; n < B.length; n++)
-            if (B[n][1].test(t)) return B[n][0];
-        return null
+        var t = C.classify(e);
+        return t.unknown ? null : t.category
     }
 
     function V(e, t) {
         var n = p(e);
-        if (w.cats[n]) return {
-            category: w.cats[n],
+        if (w.cats[n] || w.subcats[n]) return C.fromStored(w.cats[n], w.subcats[n], e, {
             source: "cache"
-        };
-        var a = w.history.find(function(e) {
-            return e.name_key === n && e.category
         });
-        if (a) return {
-            category: a.category,
+        var a = w.history.find(function(e) {
+            return e.name_key === n && (e.category || e.subsection)
+        });
+        if (a) return C.fromStored(a.category, a.subsection, e, {
             source: "cache"
-        };
-        if (t && t.category) return {
-            category: t.category,
+        });
+        if (t && (t.category || t.section || t.subsection || t.text)) return C.classify(e, {
+            section: t.section || t.category,
+            subsection: t.subsection,
+            text: t.text,
             source: "barcode"
-        };
-        var i = F(e);
-        return {
-            category: i || "Other",
-            source: "local",
-            unknown: !i
-        }
+        });
+        return C.classify(e)
     }
     var Z = [],
         G = null;
@@ -852,16 +911,13 @@ function lhAuthRedirect() {
                     var o = !1;
                     e.forEach(function(e, t) {
                         var n = i.results[t];
-                        if (n && n.category) {
-                            w.cats[p(e.name)] = n.category;
+                        if (n && (n.category || n.section)) {
+                            var r = C.fromAI(n, e.name);
+                            rememberCat(e.name, r);
                             var a = w.items.find(function(t) {
                                 return t.id === e.id
                             });
-                            a && "user" !== a.category_source && (a.category === n.category && "ai" === a.category_source || (a.category = n.category, a.category_source = "ai", o = !0, _().from("lh_items").update({
-                                category: n.category,
-                                category_source: "ai",
-                                updated_at: (new Date).toISOString()
-                            }).eq("id", a.id).then(function() {}, function() {})))
+                            a && "user" !== a.category_source && (a.category === r.category && a.subsection === r.subsection && "ai" === a.category_source || (applyResolved(a, r, "ai"), o = !0, _().from("lh_items").update(itemCatPatch(r, "ai")).eq("id", a.id).then(function() {}, function() {})))
                         }
                     }), o && se(), Z.length && W()
                 }
@@ -947,8 +1003,13 @@ function lhAuthRedirect() {
                         category: r.category,
                         category_source: r.source,
                         barcode: i.barcode || null
-                    },
-                    c = await _().from("lh_items").insert(s).select("*").single();
+                    };
+                    w.hasSubcol && (s.subsection = r.subsection || "");
+                    rememberCat(i.name, r);
+                var c = await _().from("lh_items").insert(s).select("*").single();
+                if (c.error && s.subsection != null && /subsection|schema cache/i.test(c.error.message || "")) {
+                    w.hasSubcol = !1, delete s.subsection, c = await _().from("lh_items").insert(s).select("*").single()
+                }
                 if (c.error) {
                     g(c.error.message, !0);
                     break
@@ -1005,15 +1066,7 @@ function lhAuthRedirect() {
     }
 
     function re(e) {
-        var t = {};
-        return e.forEach(function(e) {
-            var n = e.category || "Other";
-            (t[n] = t[n] || []).push(e)
-        }), i.filter(function(e) {
-            return t[e]
-        }).map(function(e) {
-            return [e, t[e]]
-        })
+        return C.groupItems(e, catOf)
     }
 
     function oe(e) {
@@ -1023,7 +1076,8 @@ function lhAuthRedirect() {
             o = "wish" === w.kind,
             q = currentRequest(e.id),
             z = requestBadge(q);
-        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (r[e.category] || "📦") + " " + h(e.category || "Other") + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div></div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
+        var cat = catOf(e);
+        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (cat.subEmoji || cat.emoji || "📦") + " " + h(o ? cat.label : cat.chip || cat.section) + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div></div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
     }
 
     function se() {
@@ -1059,9 +1113,7 @@ function lhAuthRedirect() {
             });
             var d = l("#items");
             if (n.length) {
-                d.innerHTML = re(o).map(function(e) {
-                    return '<section class="group" data-cat="' + h(e[0]) + '"><div class="group-title"><span>' + r[e[0]] + " " + h(e[0]) + " · " + e[1].length + "</span></div>" + e[1].map(oe).join("") + "</section>"
-                }).join("") + (o.length ? "" : '<div class="empty">All done here.</div>') + (s.length ? '<section class="group"><div class="group-title"><span>Got it · ' + s.length + '</span><button class="btn ghost sm" id="clear-done" type="button">Clear</button></div>' + s.map(oe).join("") + "</section>" : ""), u("#items .item").forEach(function(e) {
+                d.innerHTML = C.renderGroups(o, oe, catOf) + (o.length ? "" : '<div class="empty">All done here.</div>') + (s.length ? '<section class="group"><div class="group-title"><span>Got it · ' + s.length + '</span><button class="btn ghost sm" id="clear-done" type="button">Clear</button></div>' + s.map(oe).join("") + "</section>" : ""), u("#items .item").forEach(function(e) {
                     var t = w.items.find(function(t) {
                         return t.id === e.dataset.id
                     });
@@ -1090,28 +1142,18 @@ function lhAuthRedirect() {
                         openFindOptions(t)
                     }, e.querySelector('[data-act="cat"]').onclick = function(n) {
                         n && n.stopPropagation && n.stopPropagation();
-                        var e;
-                        U('<div class="modal-top"><strong>Category for “' + h((e = t).name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div><div class="cat-grid">' + i.map(function(t) {
-                            return '<button class="chip-btn' + (t === e.category ? " on" : "") + '" data-cat="' + h(t) + '">' + r[t] + " " + h(t) + "</button>"
-                        }).join("") + '</div><p class="hint">We’ll remember this for next time.</p>'), u("#sheet [data-cat]").forEach(function(t) {
+                        var e = t,
+                            cur = catOf(e);
+                        U('<div class="modal-top"><strong>Category for “' + h(e.name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div>' + C.pickerHtml(cur) + '<p class="hint">Optional — we’ll remember this for next time. You never have to set it.</p>'), u("#sheet [data-section]").forEach(function(t) {
                             t.onclick = async function() {
-                                var n = t.dataset.cat;
-                                N(), e.category = n, e.category_source = "user", w.cats[p(e.name)] = n, se();
-                                var i = await _().from("lh_items").update({
-                                    category: n,
-                                    category_source: "user",
-                                    updated_at: (new Date).toISOString()
-                                }).eq("id", e.id);
+                                var resolved = C.fromStored(t.dataset.section, t.dataset.sub || "", e.name, {
+                                    trustSection: !0,
+                                    source: "user"
+                                });
+                                N(), applyResolved(e, resolved, "user"), se();
+                                var i = await _().from("lh_items").update(itemCatPatch(resolved, "user")).eq("id", e.id);
                                 if (i.error) return g(i.error.message, !0);
-                                _().from("lh_category_cache").upsert({
-                                    household_id: a,
-                                    name_key: p(e.name),
-                                    category: n,
-                                    source: "user",
-                                    updated_at: (new Date).toISOString()
-                                }, {
-                                    onConflict: "household_id,name_key"
-                                }).then(function() {}, function() {})
+                                cacheUpsert(e.name, resolved, "user")
                             }
                         })
                     })
@@ -1162,9 +1204,11 @@ function lhAuthRedirect() {
                 U('<div class="modal-top"><strong>Plan a trip</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint" style="margin-top:0">Where are you going?</p><div class="chips" id="trip-stores">' + w.stores.map(function(e) {
                     return '<button class="chip-btn' + (t.storeId === e.id ? " on" : "") + '" data-store="' + e.id + '">' + h(e.name) + "</button>"
                 }).join("") + '<button class="chip-btn" data-store="__new__">+ Other store…</button></div><p class="hint">Tick what to get on this trip:</p>' + (o.length ? re(o).map(function(e) {
-                    return '<div class="group-title"><span>' + r[e[0]] + " " + h(e[0]) + '</span><button class="btn ghost sm" data-allcat="' + h(e[0]) + '">All</button></div>' + e[1].map(function(e) {
-                        var n = Y(e.preferred_store_id);
-                        return '<div class="pick" data-pick="' + e.id + '"><span class="check-btn' + (t.picked[e.id] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(e.name) + '</div><div class="item-meta">' + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (n ? '<span class="badge">' + h(n.name) + "</span>" : "") + "</div></div></div>"
+                    return '<div class="group-title"><span>' + e.emoji + " " + h(e.section) + '</span><button class="btn ghost sm" data-allcat="' + h(e.section) + '">All</button></div>' + e.subs.map(function(s) {
+                        return (s.name ? '<div class="subhead"><span>' + h(s.name) + "</span></div>" : "") + s.items.map(function(e) {
+                            var n = Y(e.preferred_store_id);
+                            return '<div class="pick" data-pick="' + e.id + '"><span class="check-btn' + (t.picked[e.id] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(e.name) + '</div><div class="item-meta">' + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (n ? '<span class="badge">' + h(n.name) + "</span>" : "") + "</div></div></div>"
+                        }).join("")
                     }).join("")
                 }).join("") : '<div class="empty">The List is empty — add items first.</div>') + '<div class="sheet-foot"><button class="btn primary" id="trip-start"' + (s && c ? "" : " disabled") + ">" + (c ? "Start " + h(c.name) + " trip · " + s + " item" + (1 === s ? "" : "s") : "Pick a store") + "</button></div>"), u("#sheet [data-store]").forEach(function(a) {
                     a.onclick = async function() {
@@ -1183,7 +1227,7 @@ function lhAuthRedirect() {
                 }), u("#sheet [data-allcat]").forEach(function(n) {
                     n.onclick = function() {
                         $("needs").forEach(function(e) {
-                            (e.category || "Other") === n.dataset.allcat && (t.picked[e.id] = !0)
+                            catOf(e).section === n.dataset.allcat && (t.picked[e.id] = !0)
                         }), e()
                     }
                 });
@@ -1212,15 +1256,17 @@ function lhAuthRedirect() {
                                 var n = w.items.find(function(t) {
                                     return t.id === e
                                 });
-                                return {
+                                var cat = catOf(n),
+                                    row = {
                                     trip_id: s.id,
                                     household_id: a,
                                     item_id: e,
                                     name: n.name,
                                     qty: n.qty,
-                                    category: n.category,
-                                    sort_order: 1e3 * i.indexOf(n.category || "Other") + t
-                                }
+                                    category: cat.category,
+                                    sort_order: 100 * C.sortIndex(cat.section, cat.subsection) + t
+                                };
+                                return w.hasSubcol && (row.subsection = cat.subsection || ""), row
                             });
                             if (c.length) {
                                 var d = await _().from("lh_trip_items").insert(c).select("*");
@@ -1242,17 +1288,13 @@ function lhAuthRedirect() {
                 o = t.items.filter(function(e) {
                     return e.checked
                 }).length,
-                s = {};
-            t.items.forEach(function(e) {
-                var t = e.category || "Other";
-                (s[t] = s[t] || []).push(e)
-            });
+                s = C.groupItems(t.items, catOf);
             var c = t.export_target || (Y(t.store_id) || {}).app_hint;
-            U('<div class="modal-top"><strong>🛒 ' + h(t.store_name) + ' trip</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint" style="margin-top:0" id="trip-count">' + o + " of " + n + " in the cart. Tap items as you grab them.</p>" + i.filter(function(e) {
-                return s[e]
-            }).map(function(e) {
-                return '<div class="group-title"><span>' + r[e] + " " + h(e) + "</span></div>" + s[e].map(function(e) {
-                    return '<div class="pick" data-ti="' + e.id + '"><span class="check-btn' + (e.checked ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name" style="' + (e.checked ? "text-decoration:line-through;color:var(--muted)" : "") + '">' + h(e.name) + "</div>" + (e.qty ? '<div class="item-meta"><span class="badge">' + h(e.qty) + "</span></div>" : "") + "</div></div>"
+            U('<div class="modal-top"><strong>🛒 ' + h(t.store_name) + ' trip</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint" style="margin-top:0" id="trip-count">' + o + " of " + n + " in the cart. Tap items as you grab them.</p>" + s.map(function(e) {
+                return '<div class="group-title"><span>' + e.emoji + " " + h(e.section) + "</span></div>" + e.subs.map(function(sub) {
+                    return (sub.name ? '<div class="subhead"><span>' + h(sub.name) + "</span></div>" : "") + sub.items.map(function(e) {
+                        return '<div class="pick" data-ti="' + e.id + '"><span class="check-btn' + (e.checked ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name" style="' + (e.checked ? "text-decoration:line-through;color:var(--muted)" : "") + '">' + h(e.name) + "</div>" + (e.qty ? '<div class="item-meta"><span class="badge">' + h(e.qty) + "</span></div>" : "") + "</div></div>"
+                    }).join("")
                 }).join("")
             }).join("") + (n ? "" : '<div class="empty">No items on this trip yet.</div>') + '<div class="sheet-foot"><button class="btn" id="trip-more">+ Add more from the List</button><button class="btn soon" id="trip-export" disabled title="Coming soon">📲 Send to ' + h(t.store_name) + ("amazon" === c ? "" : " / Amazon") + ' app — coming soon</button><button class="btn primary" id="trip-finish">Finish trip' + (o ? " · " + o + " bought" : "") + '</button><button class="btn ghost sm" id="trip-cancel" style="justify-self:center">Cancel trip</button></div>'), u("#sheet [data-ti]").forEach(function(n) {
                 n.onclick = async function() {
@@ -1278,7 +1320,7 @@ function lhAuthRedirect() {
                         r = {};
                     ! function n() {
                         U('<div class="modal-top"><strong>Add to ' + h(e.store_name) + ' trip</strong><button class="btn ghost sm" id="att-back">Back</button></div>' + (i.length ? i.map(function(e) {
-                            return '<div class="pick" data-p="' + e.id + '"><span class="check-btn' + (r[e.id] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge">' + h(e.category || "Other") + "</span></div></div></div>"
+                            return '<div class="pick" data-p="' + e.id + '"><span class="check-btn' + (r[e.id] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge">' + h(catOf(e).label) + "</span></div></div></div>"
                         }).join("") : '<div class="empty">Everything on the List is already on this trip.</div>') + '<div class="sheet-foot"><button class="btn primary" id="att-add">Add selected</button></div>'), l("#att-back").onclick = t, u("#sheet [data-p]").forEach(function(e) {
                             e.onclick = function() {
                                 r[e.dataset.p] = !r[e.dataset.p], n()
@@ -1287,15 +1329,17 @@ function lhAuthRedirect() {
                             var n = i.filter(function(e) {
                                 return r[e.id]
                             }).map(function(t, n) {
-                                return {
+                                var cat = catOf(t),
+                                    row = {
                                     trip_id: e.id,
                                     household_id: a,
                                     item_id: t.id,
                                     name: t.name,
                                     qty: t.qty,
-                                    category: t.category,
+                                    category: cat.category,
                                     sort_order: 1e5 + n
-                                }
+                                };
+                                return w.hasSubcol && (row.subsection = cat.subsection || ""), row
                             });
                             if (n.length) {
                                 var o = await _().from("lh_trip_items").insert(n).select("*");
@@ -1612,7 +1656,7 @@ function lhAuthRedirect() {
         },
         Se = {
             food: "Food",
-            beauty: "Personal care",
+            beauty: "Personal Care",
             petfood: "Pets"
         };
 
@@ -1708,9 +1752,11 @@ function lhAuthRedirect() {
             if (n && n.found) {
                 var a = [n.name, n.brand, n.quantity].filter(Boolean).join(" · ").trim() || "Product " + e,
                     i = n.source || "",
-                    r = Se[n.type] || (/beauty/.test(i) ? "Personal care" : /petfood/.test(i) ? "Pets" : /food/.test(i) ? "Food" : null);
+                    r = C.barcodeHint(n);
                 w.pending.hint = {
-                    category: r,
+                    category: r.category,
+                    section: r.section,
+                    subsection: r.subsection,
                     text: [n.name, n.brand, n.categories].filter(Boolean).join(" | ").slice(0, 160)
                 }, t.placeholder = "Add item…", t.value = a, ie(a), g("Barcode matched (" + i + ") — review & tap Add"), f("Found: " + a, 5e3)
             } else {
@@ -1956,6 +2002,7 @@ function lhAuthRedirect() {
             onScanned: Ee,
             lookupProduct: Le,
             localCat: F,
+            catOf: catOf,
             parseVoice: Ce,
             showConfirm: xe,
             reload: O,

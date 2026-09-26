@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>List Hub · category preview</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    body { padding: 16px; padding-bottom: 32px; }
+    #items { max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 1.2rem; margin: 0 0 12px; }
+  </style>
+</head>
+<body>
+  <h1>List</h1>
+  <main id="items" class="items"></main>
+  <script src="../categories.js"></script>
+  <script>
+    window.__previewErrors = [];
+    window.onerror = function (msg) { window.__previewErrors.push(String(msg)); };
+    var items = [
+      { id: "1", name: "Shredded lettuce", category: "Food", status: "needed" },
+      { id: "2", name: "Bananas", category: "Food", status: "needed" },
+      { id: "3", name: "Chicken", category: "Food", status: "needed" },
+      { id: "4", name: "Ground beef", category: "Food", status: "needed" },
+      { id: "5", name: "Eggs", category: "Food", status: "needed" },
+      { id: "6", name: "Cottage cheese", category: "Food", status: "needed" },
+      { id: "7", name: "Oikos yogurt", category: "Food", status: "needed" },
+      { id: "8", name: "Coffee", category: "Food", status: "needed" },
+      { id: "9", name: "Fruity Pebbles", category: "Other", status: "needed" },
+      { id: "10", name: "Protein bars", category: "Other", status: "needed" },
+      { id: "11", name: "Tide pods", category: "Household", status: "needed" },
+      { id: "12", name: "Toilet paper", category: "Household", status: "needed" },
+      { id: "13", name: "New PC", category: "Electronics", status: "needed" },
+      { id: "14", name: "NVIDIA DGX Spark", category: "Electronics", status: "needed" },
+      { id: "15", name: "Traeger Woodbridge elite", category: "Household", category_source: "user", status: "needed" }
+    ];
+    function renderItem(e) {
+      var cat = LHCats.resolveItem(e);
+      return '<article class="item" data-id="' + e.id + '"><button class="check-btn" type="button">✓</button><div class="item-body"><div class="item-name">' +
+        e.name + '</div><div class="item-meta"><span class="badge cat">' +
+        (cat.subEmoji || cat.emoji) + " " + (cat.chip || cat.section) + "</span></div></div></article>";
+    }
+    document.getElementById("items").innerHTML = LHCats.renderGroups(items, renderItem);
+    window.__previewReady = true;
+    window.__previewGroups = LHCats.groupItems(items);
+  </script>
+</body>
+</html>
