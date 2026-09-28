@@ -270,6 +270,7 @@ async function run(browserType, name) {
   if (menu.hidden) fail("Menu sheet did not open");
   if (!/AI agents/i.test(menu.text)) fail("Menu missing AI agents section");
   if (!/Instructions for your AI/i.test(menu.text)) fail("Menu missing instructions snippet");
+  if (!/Set a password/i.test(menu.text)) fail("narrow menu missing Set a password");
   if (!/lh-agent-api/.test(menu.url)) fail("API base URL missing: " + menu.url);
   if (menu.overflow) fail("AI agents sheet overflows horizontally at 390px");
 

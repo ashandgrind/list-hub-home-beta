@@ -265,7 +265,7 @@ select {
 .app {
     max-width: 720px;
     margin: 0 auto;
-    padding: 12px 14px 96px;
+    padding: 12px 14px 120px;
     padding-top: calc(12px + var(--safe-t))
 }
 
@@ -293,9 +293,9 @@ select {
     display: flex;
     gap: 6px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    max-width: 58%
+    flex: 0 0 auto
 }
 
 .tabs {
@@ -1159,12 +1159,12 @@ body:has(#sheet:not(.hidden)) .toast {
     flex-wrap: wrap
 }
 @media (max-width: 420px) {
-    .top-actions {
-        max-width: 62%
-    }
     .top-actions .btn.sm {
         padding: 8px 10px;
         font-size: .82rem
+    }
+    #setpw-btn {
+        display: none !important
     }
     .bottom-bar .btn {
         font-size: .92rem;

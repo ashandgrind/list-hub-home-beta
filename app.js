@@ -2460,6 +2460,9 @@ function lhAuthRedirect() {
                     f(ok ? "Instructions copied — paste them into your AI." : "Couldn’t copy the instructions.")
                 })
             });
+            l("#agent-setpw") && (l("#agent-setpw").onclick = function() {
+                z("Set a password", "Lets you sign in with email + password when you don’t want to wait for an email.")
+            });
             u("#sheet [data-revoke]").forEach(function(btn) {
                 btn.onclick = async function() {
                     var tokenId = btn.getAttribute("data-revoke");
@@ -2493,10 +2496,12 @@ function lhAuthRedirect() {
                 listErr = agentRpcErrorMessage(err)
             }
             var fresh = agentSettingsFresh;
+            var needsPassword = l("#setpw-btn") && !l("#setpw-btn").classList.contains("hidden");
             var tokenRows = listed.length ? listed.map(function(tok) {
                 return '<div class="agent-row"><div><strong>' + h(tok.name || "Agent") + "</strong><p class=\"meta\">Created " + h(agentWhen(tok.created_at)) + (tok.created_by ? " · " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + "</p></div><button type=\"button\" class=\"btn ghost sm danger\" data-revoke=\"" + h(tok.id) + "\">Revoke</button></div>"
             }).join("") : '<p class="hint">No active tokens yet.</p>';
             U('<div class="modal-top"><strong>Menu</strong><button class="btn ghost sm" data-close>Close</button></div>' +
+                (needsPassword ? '<button type="button" class="btn wide" id="agent-setpw">🔑 Set a password</button>' : "") +
                 '<div class="agent-sec"><h3>AI agents</h3><p class="hint" style="margin-top:0">Create a named token so Grok, ChatGPT, Claude, or a custom agent can read this household’s list and fill a store cart. The token is shown once — copy it now.</p>' +
                 '<div class="agent-create"><input id="agent-token-name" type="text" maxlength="80" placeholder="Name (Grok Bot, ChatGPT…)" enterkeyhint="done"><button type="button" class="btn primary" id="agent-create-btn">Create</button></div>' +
                 (fresh && fresh.token ? '<div class="agent-once" id="agent-fresh"><strong>Copy this token now.</strong> It will not be shown again.<code class="agent-token-value">' + h(fresh.token) + '</code><button type="button" class="btn sm" id="agent-copy-fresh">Copy token</button></div>' : "") +
