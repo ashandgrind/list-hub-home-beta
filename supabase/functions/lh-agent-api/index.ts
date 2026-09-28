@@ -12,7 +12,9 @@ const hits = new Map<string, number[]>();
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
 });
-const hub = admin.schema("list_hub");
+// PostgREST exposes `public` only on this project, so read list_hub tables through
+// the public lh_* views (lh_items, lh_lists, lh_stores, lh_agent_tokens).
+const hub = { from: (table: string) => admin.from(`lh_${table}`) };
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "*";
@@ -76,12 +78,10 @@ function routePath(req: Request) {
   return { url, path };
 }
 
-function apiBase(req: Request) {
-  const url = new URL(req.url);
-  const marker = "/lh-agent-api";
-  const idx = url.pathname.lastIndexOf(marker);
-  const prefix = idx >= 0 ? url.pathname.slice(0, idx + marker.length) : "/functions/v1/lh-agent-api";
-  return `${url.origin}${prefix}`;
+function apiBase(_req: Request) {
+  // Inside the edge runtime req.url is http://<ref>.supabase.co/lh-agent-api/… (no /functions/v1),
+  // so publish the public URL agents must call.
+  return `https://${PROJECT_REF}.supabase.co/functions/v1/lh-agent-api`;
 }
 
 type AgentToken = { id: string; household_id: string; name: string };
@@ -579,5 +579,3 @@ Deno.serve(async (req) => {
     return json(req, 500, { error: "failed", message: "Something went wrong.", detail: String(err).slice(0, 200) });
   }
 });
-
-void PROJECT_REF;
