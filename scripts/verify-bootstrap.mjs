@@ -12,6 +12,13 @@ if (/var C = window\.LHCats|C = window\.LHCats/.test(readFileSync("app.js", "utf
 if (!/async function lhBootstrap\(/.test(readFileSync("app.js", "utf8"))) {
   throw new Error("app.js is missing async function lhBootstrap");
 }
+const appSrc = readFileSync("app.js", "utf8");
+if (/\b(var|let|const|function) C\b/.test(appSrc)) {
+  throw new Error("app.js introduces a top-level C identifier (clashes with lhBootstrap)");
+}
+if (!/function formatOpenListMarkdown\(/.test(appSrc) || !/function openAgentSettings\(/.test(appSrc)) {
+  throw new Error("app.js is missing agent export helpers");
+}
 
 const mock = `<script>
 window.LH_BOOT_CALLS = 0;
@@ -25,9 +32,9 @@ window.LH_BOOT_CALLS = 0;
       { id: "l-wish", slug: "wish", name: "Wishlist", kind: "wish", status: "open" }
     ],
     items: [
-      { id: "i1", list_id: "l-needs", name: "Shredded lettuce", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null },
-      { id: "i2", list_id: "l-needs", name: "Chicken", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null },
-      { id: "i3", list_id: "l-needs", name: "Eggs", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null },
+      { id: "i1", list_id: "l-needs", name: "Shredded lettuce", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null, preferred_store_id: "s1" },
+      { id: "i2", list_id: "l-needs", name: "Chicken", qty: "2 lb", status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null, preferred_store_id: "s1" },
+      { id: "i3", list_id: "l-needs", name: "Eggs", qty: "1 dozen", status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null, preferred_store_id: "s1" },
       { id: "i4", list_id: "l-needs", name: "Coffee", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Food", category_source: "local", barcode: null },
       { id: "i5", list_id: "l-wish", name: "New PC", qty: null, status: "needed", discreet: false, created_by: "Chris", category: "Electronics", category_source: "ai", barcode: null }
     ],
@@ -64,10 +71,37 @@ window.LH_BOOT_CALLS = 0;
           },
           signOut: function () { return Promise.resolve({ error: null }); }
         },
-        rpc: function (name) {
+        rpc: function (name, args) {
           if (name === "lh_bootstrap") {
             window.LH_BOOT_CALLS++;
             return Promise.resolve({ data: BOOT, error: null });
+          }
+          if (name === "lh_list_agent_tokens") {
+            return Promise.resolve({ data: window.LH_AGENT_TOKENS || [], error: null });
+          }
+          if (name === "lh_create_agent_token") {
+            var tok = {
+              id: "tok1",
+              name: (args && args.name) || "Agent",
+              token: "lh_testtoken_abcdefghijklmnopqrstuvwxyz012345",
+              created_at: "2026-09-28T00:00:00Z",
+              created_by: "Chris"
+            };
+            window.LH_AGENT_TOKENS = [{
+              id: tok.id,
+              name: tok.name,
+              created_at: tok.created_at,
+              created_by: tok.created_by,
+              last_used_at: null,
+              revoked_at: null
+            }];
+            return Promise.resolve({ data: tok, error: null });
+          }
+          if (name === "lh_revoke_agent_token") {
+            window.LH_AGENT_TOKENS = (window.LH_AGENT_TOKENS || []).filter(function (row) {
+              return row.id !== (args && args.id);
+            });
+            return Promise.resolve({ data: { ok: true, id: args && args.id }, error: null });
           }
           return Promise.resolve({ data: null, error: null });
         },
@@ -182,9 +216,77 @@ async function run(browserType, name) {
     if (!food.subs.some(function (s) { return /Produce/i.test(s); })) fail("Produce subhead missing");
     if (!food.items.includes("Eggs") || !food.items.includes("Chicken")) fail("bootstrap items missing");
   }
+
+  const chrome = await page.evaluate(function () {
+    var menu = document.getElementById("menu-btn");
+    var exp = document.getElementById("export-ai-btn");
+    var plan = document.getElementById("plan-bar");
+    var md = window.__lh && window.__lh.api && window.__lh.api.formatOpenListMarkdown
+      ? window.__lh.api.formatOpenListMarkdown("needs")
+      : "";
+    return {
+      hasMenu: !!(menu && menu.offsetWidth),
+      hasExport: !!(exp && exp.offsetWidth),
+      planHidden: !plan || plan.classList.contains("hidden"),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
+      markdown: md,
+      hasFormat: !!(window.__lh && window.__lh.api && window.__lh.api.formatOpenListMarkdown)
+    };
+  });
+  if (!chrome.hasMenu) fail("Menu button missing or not visible");
+  if (!chrome.hasExport) fail("Export for AI button missing or not visible");
+  if (chrome.planHidden) fail("plan/export bar hidden on List tab");
+  if (chrome.overflow) fail("horizontal overflow at 390px on list");
+  if (!chrome.hasFormat) fail("formatOpenListMarkdown not exported");
+  if (!/# List Hub — List/.test(chrome.markdown)) fail("export markdown missing title");
+  if (!/## Publix/.test(chrome.markdown) || !/## Any store/.test(chrome.markdown)) fail("export markdown not grouped by store: " + chrome.markdown);
+  if (!/### Food/.test(chrome.markdown) || !/#### Produce/.test(chrome.markdown)) fail("export markdown not grouped by section: " + chrome.markdown);
+  if (!/- \[ \] Chicken — 2 lb/.test(chrome.markdown)) fail("export markdown missing qty line: " + chrome.markdown);
+
+  await page.evaluate(function () {
+    window.__lhShared = null;
+    navigator.share = function (payload) {
+      window.__lhShared = payload;
+      return Promise.resolve();
+    };
+  });
+  await page.click("#export-ai-btn");
+  await page.waitForFunction(function () { return !!window.__lhShared; }, null, { timeout: 4000 });
+  const shared = await page.evaluate(function () { return window.__lhShared; });
+  if (!shared || !/List Hub — List/.test(shared.text || "")) fail("Export for AI did not share markdown");
+
+  await page.click("#menu-btn");
+  await page.waitForSelector("#agent-token-name", { timeout: 5000 });
+  const menu = await page.evaluate(function () {
+    var sheet = document.getElementById("sheet");
+    var card = document.getElementById("sheet-card");
+    return {
+      hidden: !sheet || sheet.classList.contains("hidden"),
+      text: card ? card.innerText : "",
+      overflow: card && card.scrollWidth > card.clientWidth + 8,
+      url: (document.getElementById("agent-url") || {}).value || ""
+    };
+  });
+  if (menu.hidden) fail("Menu sheet did not open");
+  if (!/AI agents/i.test(menu.text)) fail("Menu missing AI agents section");
+  if (!/Instructions for your AI/i.test(menu.text)) fail("Menu missing instructions snippet");
+  if (!/Set a password/i.test(menu.text)) fail("narrow menu missing Set a password");
+  if (!/lh-agent-api/.test(menu.url)) fail("API base URL missing: " + menu.url);
+  if (menu.overflow) fail("AI agents sheet overflows horizontally at 390px");
+
+  await page.fill("#agent-token-name", "Grok Bot");
+  await page.click("#agent-create-btn");
+  await page.waitForSelector("#agent-fresh", { timeout: 5000 });
+  const fresh = await page.evaluate(function () {
+    var el = document.querySelector(".agent-token-value");
+    return el ? el.textContent : "";
+  });
+  if (!/^lh_/.test(fresh)) fail("created token not shown once: " + fresh);
+
   await page.screenshot({ path: join(outDir, "signed-in-bootstrap-" + name + ".png"), fullPage: true });
+  await page.screenshot({ path: join(outDir, "agent-menu-" + name + ".png"), fullPage: true });
   await browser.close();
-  console.log(name, JSON.stringify(info, null, 2));
+  console.log(name, JSON.stringify({ info: info, chrome: chrome, menu: { url: menu.url, overflow: menu.overflow }, fresh: fresh }, null, 2));
 }
 
 try {
