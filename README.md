@@ -20,6 +20,7 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 - Wishlist detail sheet: notes, target price, store/source, links, **Finds** log
 - **Find options** on Wishlist items (once / daily / weekly research jobs for Shopping Buddy)
 - Shopping Buddy can poll due jobs and log Finds — see [docs/finds.md](docs/finds.md)
+- **AI agent export**: Menu → AI agents (named `lh_` tokens) plus **Export for AI** on the List tab. Any assistant can read the list and fill a store cart — see [docs/AGENT_API.md](docs/AGENT_API.md)
 
 ## Sign in
 
@@ -46,6 +47,12 @@ Two-level categories (section + aisle) are in:
 Apply that file on the same project when you want aisles persisted (and so `lh_bootstrap` returns `subsection` / `subcats`). Until it is applied, the new app still works: it keeps writing the old `category` values the live client understands, and infers aisles locally. The migration is additive — `cats` stays `{ name_key: category_string }`, so the currently deployed app keeps loading after the SQL is applied.
 
 Also deploy `supabase/functions/lh-categorize/index.ts` after (or with) the migration so xAI returns section + subsection. The app keeps a local keyword fallback either way.
+
+AI agent tokens (`list_hub.agent_tokens`) and `lh-agent-api` are in:
+
+`supabase/migrations/20260928120000_list_hub_agent_tokens.sql`
+
+Apply that file, then deploy `supabase/functions/lh-agent-api` with **verify_jwt OFF** (auth is `Authorization: Bearer lh_…`). See [docs/AGENT_API.md](docs/AGENT_API.md). No extra secrets. The live app keeps working if the SQL is applied first.
 
 ## Deploy
 

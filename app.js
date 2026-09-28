@@ -1695,7 +1695,11 @@ function lhAuthRedirect() {
         }
     }), l("#plan-btn").onclick = function() {
         de()
-    };
+    }, l("#menu-btn") && (l("#menu-btn").onclick = function() {
+        openAgentSettings()
+    }), l("#export-ai-btn") && (l("#export-ai-btn").onclick = function() {
+        exportListForAi()
+    });
     var ue = null;
 
     function he() {
@@ -2267,7 +2271,256 @@ function lhAuthRedirect() {
                     } catch (e) {}
                 }, t)
             }
-        }, window.__lh.api = {
+        };
+
+        function agentApiBaseUrl() {
+            return t + "/functions/v1/lh-agent-api"
+        }
+
+        function agentWhen(iso) {
+            if (!iso) return "never";
+            var when = new Date(iso);
+            return isNaN(when) ? "" : when.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric"
+            })
+        }
+
+        function agentRpcErrorMessage(err) {
+            var msg = err && (err.message || err.details || String(err)) || "Request failed";
+            if (/could not find the function|schema cache|404|PGRST202/i.test(msg)) return "AI agent tokens aren’t on the server yet. Apply the agent_tokens migration first.";
+            if (/not_allowed|42501/i.test(msg)) return "Only household members can manage agent tokens.";
+            if (/not_found|P0002/i.test(msg)) return "That token is already gone.";
+            return msg
+        }
+
+        function agentInstructionsSnippet() {
+            var base = agentApiBaseUrl();
+            return [
+                "You are helping the Pollock household shop with List Hub.",
+                "",
+                "API base: " + base,
+                "Auth header: Authorization: Bearer <paste the lh_ token from List Hub → Menu → AI agents>",
+                "",
+                "Read the open grocery list (markdown, grouped by store then section):",
+                "  GET " + base + "/list?format=markdown&status=open",
+                "",
+                "JSON (includes item ids for updates):",
+                "  GET " + base + "/list?format=json&status=open",
+                "",
+                "Wishlist:",
+                "  GET " + base + "/wishlist?format=markdown",
+                "",
+                "After you add something to a store cart, or learn it is unavailable or already bought:",
+                "  POST " + base + "/items/{id}/status",
+                "  { \"status\": \"in_cart\" | \"bought\" | \"unavailable\", \"store\": \"Publix\", \"note\": \"optional\" }",
+                "",
+                "in_cart = you put it in a store cart (it stays on the List).",
+                "bought = they have it (checks it off and records a purchase).",
+                "unavailable = that store did not have it (it stays on the List).",
+                "",
+                "OpenAPI: GET " + base + "/openapi.json",
+                "",
+                "Group by preferred store, then store section (Produce, Dairy, …). Use the item name and quantity. Preferred store may be empty — ask which store they are shopping. Do not invent items. Do not spend money. Do not email anyone."
+            ].join("\n")
+        }
+
+        function formatOpenListMarkdown(listKind) {
+            var openItems = $(listKind || "needs"),
+                byStore = {},
+                storeNames = [];
+            openItems.forEach(function(item) {
+                var storeRow = Y(item.preferred_store_id),
+                    storeName = storeRow && storeRow.name ? storeRow.name : "Any store";
+                if (!byStore[storeName]) {
+                    byStore[storeName] = [];
+                    storeNames.push(storeName)
+                }
+                byStore[storeName].push(item)
+            });
+            storeNames.sort(function(left, right) {
+                if (left === "Any store") return 1;
+                if (right === "Any store") return -1;
+                return left.localeCompare(right)
+            });
+            var title = "wish" === (listKind || "needs") ? "Wishlist" : "List",
+                lines = ["# List Hub — " + title, ""];
+            if (!openItems.length) {
+                lines.push("_Nothing open._");
+                return lines.join("\n") + "\n"
+            }
+            storeNames.forEach(function(storeName) {
+                lines.push("## " + storeName, "");
+                LHCats.groupItems(byStore[storeName], catOf).forEach(function(group) {
+                    lines.push("### " + group.section, "");
+                    group.subs.forEach(function(sub) {
+                        if (sub.name) lines.push("#### " + sub.name, "");
+                        sub.items.forEach(function(item) {
+                            var extra = [item.qty, item.notes].filter(Boolean).join(" · ");
+                            lines.push("- [ ] " + item.name + (extra ? " — " + extra : ""))
+                        });
+                        lines.push("")
+                    })
+                })
+            });
+            return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n"
+        }
+
+        function fallbackCopyText(text) {
+            var area = document.createElement("textarea");
+            area.value = text;
+            area.setAttribute("readonly", "");
+            area.style.position = "fixed";
+            area.style.top = "0";
+            area.style.left = "0";
+            area.style.width = "2px";
+            area.style.height = "2px";
+            area.style.opacity = "0.01";
+            area.style.fontSize = "16px";
+            document.body.appendChild(area);
+            area.focus();
+            area.select();
+            area.setSelectionRange(0, text.length);
+            var ok = false;
+            try {
+                ok = document.execCommand("copy")
+            } catch (err) {
+                ok = false
+            }
+            document.body.removeChild(area);
+            return ok
+        }
+
+        function copyTextToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+                return navigator.clipboard.writeText(text).then(function() {
+                    return true
+                }, function() {
+                    return fallbackCopyText(text)
+                })
+            }
+            return Promise.resolve(fallbackCopyText(text))
+        }
+
+        function shareOrCopyText(title, text) {
+            if (typeof navigator.share === "function") {
+                return navigator.share({
+                    title: title,
+                    text: text
+                }).then(function() {
+                    return "shared"
+                }, function(err) {
+                    if (err && err.name === "AbortError") return "cancelled";
+                    return copyTextToClipboard(text).then(function(ok) {
+                        return ok ? "copied" : "failed"
+                    })
+                })
+            }
+            return copyTextToClipboard(text).then(function(ok) {
+                return ok ? "copied" : "failed"
+            })
+        }
+
+        var agentSettingsFresh = null;
+
+        function bindAgentSettings() {
+            var createBtn = l("#agent-create-btn");
+            createBtn && (createBtn.onclick = async function() {
+                var nameInput = l("#agent-token-name"),
+                    tokenName = (nameInput && nameInput.value || "").trim();
+                if (!tokenName) return f("Name this agent first (e.g. Grok Bot).");
+                createBtn.disabled = !0;
+                try {
+                    var created = await _().rpc("lh_create_agent_token", {
+                        name: tokenName
+                    });
+                    if (created.error) return g(agentRpcErrorMessage(created.error), !0), void f(agentRpcErrorMessage(created.error), 5e3);
+                    agentSettingsFresh = created.data;
+                    nameInput && (nameInput.value = "");
+                    openAgentSettings()
+                } catch (err) {
+                    f(agentRpcErrorMessage(err), 5e3)
+                } finally {
+                    createBtn.disabled = !1
+                }
+            });
+            l("#agent-copy-fresh") && (l("#agent-copy-fresh").onclick = function() {
+                if (!agentSettingsFresh || !agentSettingsFresh.token) return;
+                copyTextToClipboard(agentSettingsFresh.token).then(function(ok) {
+                    f(ok ? "Token copied. It won’t be shown again after you leave this screen." : "Couldn’t copy — select the token and copy it.")
+                })
+            });
+            l("#agent-copy-url") && (l("#agent-copy-url").onclick = function() {
+                copyTextToClipboard(agentApiBaseUrl()).then(function(ok) {
+                    f(ok ? "API URL copied." : "Couldn’t copy the API URL.")
+                })
+            });
+            l("#agent-copy-instructions") && (l("#agent-copy-instructions").onclick = function() {
+                copyTextToClipboard(agentInstructionsSnippet()).then(function(ok) {
+                    f(ok ? "Instructions copied — paste them into your AI." : "Couldn’t copy the instructions.")
+                })
+            });
+            u("#sheet [data-revoke]").forEach(function(btn) {
+                btn.onclick = async function() {
+                    var tokenId = btn.getAttribute("data-revoke");
+                    if (!tokenId) return;
+                    btn.disabled = !0;
+                    try {
+                        var revoked = await _().rpc("lh_revoke_agent_token", {
+                            id: tokenId
+                        });
+                        if (revoked.error) return f(agentRpcErrorMessage(revoked.error), 5e3);
+                        if (agentSettingsFresh && agentSettingsFresh.id === tokenId) agentSettingsFresh = null;
+                        f("Token revoked.");
+                        openAgentSettings()
+                    } catch (err) {
+                        f(agentRpcErrorMessage(err), 5e3)
+                    } finally {
+                        btn.disabled = !1
+                    }
+                }
+            })
+        }
+
+        async function openAgentSettings() {
+            var listed = [];
+            var listErr = "";
+            try {
+                var res = await _().rpc("lh_list_agent_tokens");
+                if (res.error) listErr = agentRpcErrorMessage(res.error);
+                else listed = Array.isArray(res.data) ? res.data : []
+            } catch (err) {
+                listErr = agentRpcErrorMessage(err)
+            }
+            var fresh = agentSettingsFresh;
+            var tokenRows = listed.length ? listed.map(function(tok) {
+                return '<div class="agent-row"><div><strong>' + h(tok.name || "Agent") + "</strong><p class=\"meta\">Created " + h(agentWhen(tok.created_at)) + (tok.created_by ? " · " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + "</p></div><button type=\"button\" class=\"btn ghost sm danger\" data-revoke=\"" + h(tok.id) + "\">Revoke</button></div>"
+            }).join("") : '<p class="hint">No active tokens yet.</p>';
+            U('<div class="modal-top"><strong>Menu</strong><button class="btn ghost sm" data-close>Close</button></div>' +
+                '<div class="agent-sec"><h3>AI agents</h3><p class="hint" style="margin-top:0">Create a named token so Grok, ChatGPT, Claude, or a custom agent can read this household’s list and fill a store cart. The token is shown once — copy it now.</p>' +
+                '<div class="agent-create"><input id="agent-token-name" type="text" maxlength="80" placeholder="Name (Grok Bot, ChatGPT…)" enterkeyhint="done"><button type="button" class="btn primary" id="agent-create-btn">Create</button></div>' +
+                (fresh && fresh.token ? '<div class="agent-once" id="agent-fresh"><strong>Copy this token now.</strong> It will not be shown again.<code class="agent-token-value">' + h(fresh.token) + '</code><button type="button" class="btn sm" id="agent-copy-fresh">Copy token</button></div>' : "") +
+                (listErr ? '<p class="error">' + h(listErr) + "</p>" : "") +
+                '<div class="group-title"><span>Active tokens</span></div>' + tokenRows +
+                '</div><div class="agent-sec"><h3>API base URL</h3><textarea class="agent-url" id="agent-url" readonly rows="2">' + h(agentApiBaseUrl()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-url">Copy URL</button></div></div>' +
+                '<div class="agent-sec"><h3>Instructions for your AI</h3><textarea class="agent-instructions" id="agent-instructions" readonly rows="12">' + h(agentInstructionsSnippet()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-instructions">Copy instructions</button></div></div>');
+            bindAgentSettings();
+            var nameField = l("#agent-token-name");
+            nameField && setTimeout(function() {
+                nameField.focus()
+            }, 40)
+        }
+
+        async function exportListForAi() {
+            var markdown = formatOpenListMarkdown("needs");
+            if (!$("needs").length) return f("Nothing on the List to export.");
+            var result = await shareOrCopyText("List Hub — List", markdown);
+            if ("shared" === result) f("List shared.");
+            else if ("copied" === result) f("List copied as markdown.");
+            else if ("cancelled" !== result) f("Couldn’t share or copy the list.", 5e3)
+        }
+
+        window.__lh.api = {
             addItems: ne,
             onScanned: Ee,
             lookupProduct: Le,
@@ -2282,7 +2535,11 @@ function lhAuthRedirect() {
             recFinish: He,
             openWish: openWish,
             openFindOptions: openFindOptions,
-            adderLabel: adderLabel
+            adderLabel: adderLabel,
+            formatOpenListMarkdown: formatOpenListMarkdown,
+            openAgentSettings: openAgentSettings,
+            exportListForAi: exportListForAi,
+            agentApiBaseUrl: agentApiBaseUrl
         },
         function e() {
             window.supabase && window.supabase.createClient ? async function() {
