@@ -211,8 +211,8 @@ function lhAuthRedirect() {
             n = e.next_run_at ? relWhen(e.next_run_at) : "";
         if ("cancelled" === e.status) return "Search stopped.";
         if ("done" === e.status) return "One-time search finished" + (t ? " " + t : "") + ".";
-        if ("paused" === e.status) return "Paused · was searching " + freqPhrase(e.frequency) + (t ? " · last run " + t : "") + ".";
-        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued — Shopping Buddy will search once shortly." : "Queued — searching " + freqPhrase(e.frequency) + " starting shortly.";
+        if ("paused" === e.status) return "Paused \u00b7 was searching " + freqPhrase(e.frequency) + (t ? " \u00b7 last run " + t : "") + ".";
+        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued \u2014 Shopping Buddy will search once shortly." : "Queued \u2014 searching " + freqPhrase(e.frequency) + " starting shortly.";
         var i = ["Searching " + freqPhrase(e.frequency)];
         return t && i.push("last run " + t), n && "done" !== e.status && i.push("next run " + n), i.join(", ")
     }
@@ -220,4 +220,57 @@ function lhAuthRedirect() {
     function requestBadge(e) {
         if (!requestIsOpen(e)) return "";
         return "paused" === e.status ? "Paused" : "once" === e.frequency ? "Finding" : "daily" === e.frequency ? "Daily" : "Weekly"
+    }
+
+    async function hydrateExtras() {
+        try {
+            var e = await _().from("lh_items").select("id,notes,target_price,preferred_source,product_links,added_by_user_id,added_by_kind,created_by,created_at,preferred_store_id");
+            !e.error && e.data && e.data.forEach(function(e) {
+                var t = w.items.find(function(t) {
+                    return t.id === e.id
+                });
+                t && Object.assign(t, e)
+            })
+        } catch (e) {}
+        try {
+            var sub = await _().from("lh_items").select("id,subsection");
+            if (!sub.error && sub.data) {
+                w.hasSubcol = !0;
+                sub.data.forEach(function(e) {
+                    var t = w.items.find(function(t) {
+                        return t.id === e.id
+                    });
+                    t && (t.subsection = e.subsection || t.subsection || "")
+                })
+            }
+        } catch (e) {}
+        try {
+            var t = await _().from("lh_finds").select("*");
+            if (!t.error) {
+                w.finds = t.data || [];
+                w.findsByItem = {};
+                w.finds.forEach(function(e) {
+                    (w.findsByItem[e.item_id] = w.findsByItem[e.item_id] || []).push(e)
+                })
+            }
+        } catch (e) {}
+        try {
+            var n = await _().from("lh_find_requests").select("*").order("created_at", {
+                ascending: !1
+            });
+            if (!n.error) {
+                w.findRequests = n.data || [];
+                w.reqByItem = {};
+                w.findRequests.forEach(function(e) {
+                    (w.reqByItem[e.item_id] = w.reqByItem[e.item_id] || []).push(e)
+                })
+            }
+        } catch (e) {}
+    }
+
+    function requestCardHtml(e) {
+        var t = requestIsOpen(e),
+            n = e && "paused" === e.status,
+            i = '<div class="req-card' + (t ? "" : " muted") + '"><div class="req-k">Find options</div><div class="req-status">' + h(requestStatusLine(e)) + "</div>" + (e && e.last_summary && t ? '<div class="req-sum">' + h(e.last_summary) + "</div>" : "") + (e && (e.max_price || e.condition_pref) && t ? '<div class="item-meta">' + (e.max_price ? '<span class="badge">Max $' + h(money(e.max_price)) + "</span>" : "") + (e.condition_pref && "any" !== e.condition_pref ? '<span class="badge">' + h(e.condition_pref) + "</span>" : "") + "</div>" : "") + '<div class="req-actions"><button type="button" class="btn sm accent" id="req-opts">Find options</button>' + (t && !n ? '<button type="button" class="btn sm ghost" id="req-pause">Pause</button>' : "") + (n ? '<button type="button" class="btn sm" id="req-resume">Resume</button>' : "") + (t ? '<button type="button" class="btn sm danger" id="req-stop">Stop</button>' : "") + "</div></div>";
+        return i
     }
