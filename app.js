@@ -1082,7 +1082,7 @@ function lhAuthRedirect() {
             q = currentRequest(e.id),
             z = requestBadge(q);
         var cat = catOf(e);
-        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '><div class="item-name">' + h(e.name) + '</div><div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (cat.subEmoji || cat.emoji || "📦") + " " + h(o ? cat.label : cat.chip || cat.section) + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div>' + rpLine(e) + '</div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
+        return '<article class="item' + ("needed" !== e.status ? " checked" : "") + (o ? " wish-item" : "") + '" data-id="' + e.id + '"><button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button><div class="item-body"' + (o ? ' data-act="detail" role="button" tabindex="0"' : "") + '>' + LHRename.nameRowHtml(e.name, o, h) + '<div class="item-meta"><span class="badge cat' + ("local" === e.category_source ? " guess" : "") + '" data-act="cat" title="Tap to change category">' + (cat.subEmoji || cat.emoji || "📦") + " " + h(o ? cat.label : cat.chip || cat.section) + "</span>" + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (t ? '<span class="badge">' + h(t.name) + "</span>" : "") + (e.preferred_source ? '<span class="badge">' + h(e.preferred_source) + "</span>" : "") + (e.discreet ? '<span class="badge discreet">Discreet</span>' : "") + (n ? '<span class="badge who">' + h(n) + "</span>" : "") + (i ? '<span class="badge deal">Best $' + h(money(i.price)) + "</span>" : "") + (z ? '<span class="badge search">' + h(z) + "</span>" : "") + (o ? '<span class="badge more">Details</span>' : "") + '</div>' + rpLine(e) + '</div>' + (o ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") + '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>'
     }
 
     function se() {
@@ -1141,8 +1141,15 @@ function lhAuthRedirect() {
                             t.error ? (g(t.error.message, !0), O()) : f("Deleted “" + e.name + "”")
                         }(t)
                     },                     (e.querySelector('[data-act="detail"]') || {onclick: null}).onclick = function(n) {
-                        if (!(n && n.target && n.target.closest && n.target.closest('[data-act="cat"], [data-act="findopts"]'))) openWish(t)
-                    }, (e.querySelector('[data-act="findopts"]') || {onclick: null}).onclick = function(n) {
+                        if (!(n && n.target && n.target.closest && n.target.closest('[data-act="cat"], [data-act="findopts"], [data-act="rename"]'))) openWish(t)
+                    }, LHRename.attachRename(e, t, {
+                        client: _(),
+                        wish: "wish" === w.kind,
+                        onError: function(err) {
+                            g(err && err.message, !0)
+                        },
+                        onChange: se
+                    }), (e.querySelector('[data-act="findopts"]') || {onclick: null}).onclick = function(n) {
                         n && n.stopPropagation && n.stopPropagation();
                         openFindOptions(t)
                     }, e.querySelector('[data-act="cat"]').onclick = function(n) {
