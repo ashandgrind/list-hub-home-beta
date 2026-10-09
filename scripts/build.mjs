@@ -2,27 +2,18 @@
 // content-hashed asset filenames so browsers (iPhone Safari especially) can never
 // run a stale app.js/styles.css. index.html itself is served with no-cache.
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 const out = "dist";
 rmSync(out, { recursive: true, force: true });
 mkdirSync(`${out}/assets`, { recursive: true });
 
-const partFiles = readdirSync("app.parts").filter((f) => f.endsWith(".js")).sort();
-if (!partFiles.length) throw new Error("app.parts is empty");
-const appSrc = partFiles.map((f) => readFileSync(`app.parts/${f}`)).join("");
-
 const hashed = {};
-for (const [src, base, ext, buf] of [
-  ["categories.js", "categories", "js", null],
-  ["rename-item.js", "rename-item", "js", null],
-  ["app.js", "app", "js", Buffer.from(appSrc)],
-  ["styles.css", "styles", "css", null]
-]) {
-  const body = buf || readFileSync(src);
-  const h = createHash("sha256").update(body).digest("hex").slice(0, 12);
+for (const [src, base, ext] of [["categories.js", "categories", "js"], ["rename-item.js", "rename-item", "js"], ["app.js", "app", "js"], ["styles.css", "styles", "css"]]) {
+  const buf = readFileSync(src);
+  const h = createHash("sha256").update(buf).digest("hex").slice(0, 12);
   const name = `assets/${base}.${h}.${ext}`;
-  writeFileSync(`${out}/${name}`, body);
+  writeFileSync(`${out}/${name}`, buf);
   hashed[src] = name;
 }
 

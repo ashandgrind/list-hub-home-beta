@@ -65,8 +65,18 @@ const same = R.prepareRename("Milk", " Milk ");
 assert.equal(same.ok, true);
 assert.equal(same.unchanged, true);
 
-assert.deepEqual(R.namePatch("Oat milk"), { name: "Oat milk" });
-assert.deepEqual(Object.keys(R.namePatch("Oat milk")), ["name"]);
+const stamped = R.namePatch("Oat milk", "2026-10-09T15:00:00.000Z");
+assert.deepEqual(stamped, { name: "Oat milk", updated_at: "2026-10-09T15:00:00.000Z" });
+assert.deepEqual(Object.keys(stamped), ["name", "updated_at"]);
+assert.equal("status" in stamped, false);
+
+function assertNameStamp(patch, name) {
+  assert.equal(patch.name, name);
+  assert.equal(typeof patch.updated_at, "string");
+  assert.match(patch.updated_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  assert.deepEqual(Object.keys(patch), ["name", "updated_at"]);
+  assert.equal("status" in patch, false);
+}
 
 const saved = itemFixture();
 const before = snapshotFields(saved);
@@ -75,12 +85,12 @@ const result = await R.saveRename(client, saved, "  Oat milk  ");
 assert.equal(result.ok, true);
 assert.equal(result.id, saved.id);
 assert.equal(result.id, before.id);
-assert.deepEqual(result.patch, { name: "Oat milk" });
+assertNameStamp(result.patch, "Oat milk");
 assert.equal(client.calls.length, 1);
 assert.equal(client.calls[0].table, "lh_items");
 assert.equal(client.calls[0].col, "id");
 assert.equal(client.calls[0].id, before.id);
-assert.deepEqual(client.calls[0].patch, { name: "Oat milk" });
+assertNameStamp(client.calls[0].patch, "Oat milk");
 assert.deepEqual(snapshotFields(saved), before);
 assert.equal(saved.name, "Oat milk");
 
@@ -99,7 +109,7 @@ const failResult = await R.saveRename(failClient, failed, "Bread");
 assert.equal(failResult.ok, false);
 assert.equal(failResult.reason, "save");
 assert.equal(failed.name, "Milk");
-assert.deepEqual(failClient.calls[0].patch, { name: "Bread" });
+assertNameStamp(failClient.calls[0].patch, "Bread");
 assert.equal(failClient.calls[0].id, failed.id);
 
 const enterEditor = R.createEditor();
@@ -136,4 +146,4 @@ const listHtml = R.nameRowHtml("Milk", false, (s) => s);
 assert.match(listHtml, /data-act="rename"/);
 assert.doesNotMatch(listHtml, /rename-btn/);
 
-console.log("ok rename-item: same id, name-only patch, trim, empty rejected, escape, enter, blur");
+console.log("ok rename-item: same id, {name, updated_at} patch, no status, trim, empty rejected, escape, enter, blur");

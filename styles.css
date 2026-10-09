@@ -566,6 +566,7 @@ body:has(#sheet:not(.hidden)) .toast {
 
 .item-name-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 2px;
     min-width: 0
@@ -618,8 +619,14 @@ body:has(#sheet:not(.hidden)) .toast {
 }
 
 .rename-hint {
+    display: block;
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     color: var(--danger);
     font-size: .8rem;
+    line-height: 1.35;
     margin-top: 4px
 }
 

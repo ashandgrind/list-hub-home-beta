@@ -20,8 +20,8 @@
     return { ok: true, name: name };
   }
 
-  function namePatch(name) {
-    return { name: name };
+  function namePatch(name, updatedAt) {
+    return { name: name, updated_at: updatedAt };
   }
 
   function createEditor() {
@@ -61,7 +61,7 @@
       return { ok: true, unchanged: true, id: item.id, name: prepared.name, item: item };
     }
     var prev = item.name;
-    var patch = namePatch(prepared.name);
+    var patch = namePatch(prepared.name, (new Date).toISOString());
     item.name = prepared.name;
     if (hooks.onOptimistic) hooks.onOptimistic(item);
     var res = await client.from("lh_items").update(patch).eq("id", item.id);
@@ -138,13 +138,16 @@
       }
 
       function showEmptyHint() {
-        var host = article.querySelector(".item-name-row") || article.querySelector(".item-body");
+        var row = article.querySelector(".item-name-row");
+        var host = (row && row.parentNode) || article.querySelector(".item-body") || article;
         var hint = article.querySelector(".rename-hint");
         if (!hint && host) {
           hint = document.createElement("div");
           hint.className = "rename-hint";
           hint.setAttribute("role", "status");
-          host.appendChild(hint);
+          hint.setAttribute("aria-live", "polite");
+          if (row && row.parentNode === host) host.insertBefore(hint, row.nextSibling);
+          else host.appendChild(hint);
         }
         if (hint) {
           hint.textContent = EMPTY_HINT;
@@ -158,8 +161,8 @@
         var value = input.value;
         var prepared = prepareRename(item.name, value);
         if (!prepared.ok) {
-          restoreName(item.name);
           showEmptyHint();
+          editor.start();
           return Promise.resolve({ ok: false, reason: "empty", hint: prepared.hint, id: item.id });
         }
         if (prepared.unchanged) {
