@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>List Hub · rename preview</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    body { padding: 16px; padding-bottom: 32px; }
+    #list, #wish { max-width: 520px; margin: 0 auto 28px; }
+    h1 { font-size: 1.2rem; margin: 0 0 12px; }
+  </style>
+</head>
+<body>
+  <h1>List</h1>
+  <main id="list" class="items"></main>
+  <h1>Wishlist</h1>
+  <main id="wish" class="items"></main>
+  <p id="status" class="status" aria-live="polite"></p>
+  <script src="../rename-item.js"></script>
+  <script>
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function mockClient() {
+      return {
+        from: function () {
+          return {
+            update: function () {
+              return { eq: function () { return Promise.resolve({ error: null }); } };
+            }
+          };
+        }
+      };
+    }
+    function articleHtml(item, wish) {
+      return '<article class="item' + (wish ? " wish-item" : "") + '" data-id="' + item.id + '">' +
+        '<button class="check-btn" type="button" data-act="toggle" aria-label="Got it">✓</button>' +
+        '<div class="item-body"' + (wish ? ' data-act="detail" role="button" tabindex="0"' : "") + '>' +
+        LHRename.nameRowHtml(item.name, wish, esc) +
+        '<div class="item-meta"><span class="badge cat">🍎 Food</span></div></div>' +
+        (wish ? '<button class="find-btn" type="button" data-act="findopts" aria-label="Find options">🔎</button>' : "") +
+        '<button class="x-btn" type="button" data-act="del" aria-label="Delete">✕</button></article>';
+    }
+    var listItem = { id: "list-1", name: "Milk", status: "needed", qty: "1" };
+    var wishItem = { id: "wish-1", name: "Grill", status: "needed" };
+    function render() {
+      var list = document.getElementById("list");
+      var wish = document.getElementById("wish");
+      list.innerHTML = articleHtml(listItem, false);
+      wish.innerHTML = articleHtml(wishItem, true);
+      LHRename.attachRename(list.querySelector(".item"), listItem, { client: mockClient(), wish: false, onChange: render });
+      LHRename.attachRename(wish.querySelector(".item"), wishItem, { client: mockClient(), wish: true, onChange: render });
+    }
+    render();
+    window.__previewReady = true;
+  </script>
+</body>
+</html>
