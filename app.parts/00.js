@@ -211,8 +211,8 @@ function lhAuthRedirect() {
             n = e.next_run_at ? relWhen(e.next_run_at) : "";
         if ("cancelled" === e.status) return "Search stopped.";
         if ("done" === e.status) return "One-time search finished" + (t ? " " + t : "") + ".";
-        if ("paused" === e.status) return "Paused \u00b7 was searching " + freqPhrase(e.frequency) + (t ? " \u00b7 last run " + t : "") + ".";
-        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued \u2014 Shopping Buddy will search once shortly." : "Queued \u2014 searching " + freqPhrase(e.frequency) + " starting shortly.";
+        if ("paused" === e.status) return "Paused · was searching " + freqPhrase(e.frequency) + (t ? " · last run " + t : "") + ".";
+        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued — Shopping Buddy will search once shortly." : "Queued — searching " + freqPhrase(e.frequency) + " starting shortly.";
         var i = ["Searching " + freqPhrase(e.frequency)];
         return t && i.push("last run " + t), n && "done" !== e.status && i.push("next run " + n), i.join(", ")
     }
@@ -296,9 +296,9 @@ function lhAuthRedirect() {
         function p(e, t) {
             return '<div class="detail-row"><span class="detail-k">' + h(e) + '</span><span class="detail-v">' + t + "</span></div>"
         }
-        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((catOf(e).emoji || "📦") + " " + catOf(e).label)) + p("Added", h(c || "\u2014") + (o ? " \u00b7 " + h(o) : " \u00b7 adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find \u00b7 $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " \u00b7 " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet \u2014 log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves\u2026">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace\u2026" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional \u201cLabel URL\u201d)</small></span><textarea id="wish-links" rows="3" placeholder="https://\u2026">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
+        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((catOf(e).emoji || "📦") + " " + catOf(e).label)) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
             return '<a href="' + h(e.url) + '" target="_blank" rel="noopener">' + h(e.label || e.url) + "</a>"
-        }).join("") + "</div>" : "") + '<button class="btn primary" type="submit" id="wish-save">Save details</button></form><div class="finds-block"><div class="group-title"><span>Finds \u00b7 ' + t.length + "</span></div>" + (t.length ? t.map(function(e) {
+        }).join("") + "</div>" : "") + '<button class="btn primary" type="submit" id="wish-save">Save details</button></form><div class="finds-block"><div class="group-title"><span>Finds · ' + t.length + "</span></div>" + (t.length ? t.map(function(e) {
             var t = e.found_by_kind === "assistant" || /shopping\s*buddy/i.test(e.found_by || "") ? "Shopping Buddy" : e.found_by && !/^unknown$/i.test(e.found_by) ? e.found_by : "",
                 n = e.found_at ? new Date(e.found_at) : null,
                 a = n && !isNaN(n) ? n.toLocaleString(undefined, {
@@ -308,7 +308,7 @@ function lhAuthRedirect() {
                     minute: "2-digit"
                 }) : "";
             return '<article class="find-card" data-find="' + e.id + '"><div class="find-top"><strong>' + h(e.title) + "</strong>" + (null != e.price ? '<span class="find-price">$' + h(money(e.price)) + "</span>" : "") + '</div><div class="item-meta">' + (e.source ? '<span class="badge">' + h(e.source) + "</span>" : "") + (e.condition ? '<span class="badge">' + h(e.condition) + "</span>" : "") + (t ? '<span class="badge who">' + h(t) + "</span>" : "") + (a ? '<span class="badge">' + h(a) + "</span>" : "") + "</div>" + (e.notes ? '<p class="find-notes">' + h(e.notes) + "</p>" : "") + '<div class="find-actions">' + (e.url ? '<a class="btn sm" href="' + h(e.url) + '" target="_blank" rel="noopener">Open</a>' : "") + '<button type="button" class="btn ghost sm" data-delfind="' + e.id + '">Remove</button></div></article>'
-        }).join("") : '<p class="hint">Nothing logged yet. Add a listing you or Shopping Buddy found.</p>') + '<form id="find-add" class="wish-form"><div class="group-title"><span>Log a find</span></div><label class="field"><span>Title</span><input id="find-title" required placeholder="Listing title" enterkeyhint="next"></label><div class="find-grid"><label class="field"><span>Price</span><input id="find-price" inputmode="decimal" placeholder="0.00"></label><label class="field"><span>Condition</span><select id="find-cond" class="sel"><option value="">\u2014</option><option value="new">New</option><option value="used">Used</option><option value="refurb">Refurb</option></select></label></div><label class="field"><span>Source / seller</span><input id="find-source" placeholder="Amazon, eBay, FB Marketplace, Best Buy\u2026"></label><label class="field"><span>URL</span><input id="find-url" inputmode="url" autocomplete="off" placeholder="https://"></label><label class="field"><span>Notes</span><input id="find-notes" placeholder="Optional"></label><button class="btn accent" type="submit">Add find</button></form></div>');
+        }).join("") : '<p class="hint">Nothing logged yet. Add a listing you or Shopping Buddy found.</p>') + '<form id="find-add" class="wish-form"><div class="group-title"><span>Log a find</span></div><label class="field"><span>Title</span><input id="find-title" required placeholder="Listing title" enterkeyhint="next"></label><div class="find-grid"><label class="field"><span>Price</span><input id="find-price" inputmode="decimal" placeholder="0.00"></label><label class="field"><span>Condition</span><select id="find-cond" class="sel"><option value="">—</option><option value="new">New</option><option value="used">Used</option><option value="refurb">Refurb</option></select></label></div><label class="field"><span>Source / seller</span><input id="find-source" placeholder="Amazon, eBay, FB Marketplace, Best Buy…"></label><label class="field"><span>URL</span><input id="find-url" inputmode="url" autocomplete="off" placeholder="https://"></label><label class="field"><span>Notes</span><input id="find-notes" placeholder="Optional"></label><button class="btn accent" type="submit">Add find</button></form></div>');
         var m = l("#wish-store");
         m && m.addEventListener("change", async function() {
             if ("__add__" === this.value) {
@@ -334,7 +334,7 @@ function lhAuthRedirect() {
             this.querySelector("[type=submit]").disabled = !0;
             var c = await _().from("lh_items").update(s).eq("id", e.id);
             if (this.querySelector("[type=submit]").disabled = !1, c.error) return g(c.error.message, !0);
-            Object.assign(e, s), se(), f("Saved \u201c" + e.name + "\u201d"), openWish(e)
+            Object.assign(e, s), se(), f("Saved “" + e.name + "”"), openWish(e)
         };
         l("#find-add").onsubmit = async function(t) {
             t.preventDefault();
@@ -418,11 +418,11 @@ function lhAuthRedirect() {
             o = n && null != n.max_price ? String(n.max_price) : "",
             s = n && n.condition_pref || "any",
             c = n && n.notes || "";
-        U('<div class="modal-top"><strong>Find options</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint">Ask Shopping Buddy to look for \u201c' + h(e.name) + '\u201d. Once now runs as soon as the assistant polls; Daily and Weekly keep searching.</p><form id="find-opts" class="wish-form"><div class="field"><span>How often</span><div class="freq-row" id="find-freq">' + [["once", "Once now"], ["daily", "Daily"], ["weekly", "Weekly"]].map(function(e) {
+        U('<div class="modal-top"><strong>Find options</strong><button class="btn ghost sm" data-close>Close</button></div><p class="hint">Ask Shopping Buddy to look for “' + h(e.name) + '”. Once now runs as soon as the assistant polls; Daily and Weekly keep searching.</p><form id="find-opts" class="wish-form"><div class="field"><span>How often</span><div class="freq-row" id="find-freq">' + [["once", "Once now"], ["daily", "Daily"], ["weekly", "Weekly"]].map(function(e) {
             return '<button type="button" class="chip-btn' + (e[0] === i ? " on" : "") + '" data-freq="' + e[0] + '">' + e[1] + "</button>"
         }).join("") + '</div></div><label class="field"><span>Max price (optional)</span><input id="find-max" inputmode="decimal" enterkeyhint="next" placeholder="e.g. 400" value="' + h(o) + '"></label><div class="field"><span>Condition</span><div class="freq-row" id="find-condpref">' + [["any", "Any"], ["new", "New"], ["used", "Used"]].map(function(e) {
             return '<button type="button" class="chip-btn' + (e[0] === s ? " on" : "") + '" data-cond="' + e[0] + '">' + e[1] + "</button>"
-        }).join("") + '</div></div><label class="field"><span>Notes for Shopping Buddy</span><textarea id="find-req-notes" rows="3" placeholder="Size, must-haves, avoid\u2026">' + h(c) + '</textarea></label><button class="btn primary" type="submit">' + (n ? "Update search" : "Start search") + "</button></form>");
+        }).join("") + '</div></div><label class="field"><span>Notes for Shopping Buddy</span><textarea id="find-req-notes" rows="3" placeholder="Size, must-haves, avoid…">' + h(c) + '</textarea></label><button class="btn primary" type="submit">' + (n ? "Update search" : "Start search") + "</button></form>");
         var freqPick = i,
             condPick = s;
         u("#find-freq [data-freq]").forEach(function(e) {
@@ -589,13 +589,13 @@ function lhAuthRedirect() {
                     } catch (e) {}
                     return null
                 }(t);
-            n && n.member && (E(n), y("app"), se(), d("cachedUI"), g("Syncing\u2026"));
+            n && n.member && (E(n), y("app"), se(), d("cachedUI"), g("Syncing…"));
             try {
                 var a = await lhBootstrap();
-                if (d("bootstrap"), !a || !a.member) return await _().auth.signOut(), y("gate"), void v("This email isn\u2019t on the Pollock household. Ask Chris to add you.");
+                if (d("bootstrap"), !a || !a.member) return await _().auth.signOut(), y("gate"), void v("This email isn’t on the Pollock household. Ask Chris to add you.");
                 E(a), L(t, a), w.loadedAt = Date.now(), a.member.user_id || _().rpc("lh_claim_member").then(function() {}, function() {}), await hydrateExtras(), y("app"), se(), g(""), d("signedIn"), P(), H()
             } catch (e) {
-                d("bootstrapErr"), n ? g("Offline \u2014 showing saved list (" + (e.message || "network") + ")", !0) : (y("gate"), v("Signed in, but couldn\u2019t load your list: " + (e.message || "network error") + ". Try again."))
+                d("bootstrapErr"), n ? g("Offline — showing saved list (" + (e.message || "network") + ")", !0) : (y("gate"), v("Signed in, but couldn’t load your list: " + (e.message || "network error") + ". Try again."))
             }
         }();
         try {
@@ -624,7 +624,7 @@ function lhAuthRedirect() {
     }
 
     function A(e) {
-        return /security purposes|rate limit|429|seconds/i.test(e || "") ? "An email was just sent \u2014 please wait about a minute before requesting another, and check your inbox (and spam)." : e
+        return /security purposes|rate limit|429|seconds/i.test(e || "") ? "An email was just sent — please wait about a minute before requesting another, and check your inbox (and spam)." : e
     }
     async function M() {
         var e = p(l("#login-email").value);
@@ -633,7 +633,7 @@ function lhAuthRedirect() {
         t.disabled = !0;
         try {
             var n = await I(e);
-            if (n && !n.member) return v("That email isn\u2019t on this household. Only Chris & Ellen can sign in.");
+            if (n && !n.member) return v("That email isn’t on this household. Only Chris & Ellen can sign in.");
             var a = await _().auth.signInWithOtp({
                 email: e,
                 options: {
@@ -642,7 +642,7 @@ function lhAuthRedirect() {
                 }
             });
             if (a.error) return v(A(a.error.message));
-            b("Link sent to " + e + ". Open it on this phone \u2014 it signs you in right away.")
+            b("Link sent to " + e + ". Open it on this phone — it signs you in right away.")
         } catch (e) {
             v(e.message || "Could not send link")
         } finally {
