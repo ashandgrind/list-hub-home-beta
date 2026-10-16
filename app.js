@@ -2602,10 +2602,9 @@ function lhAuthRedirect() {
                 done = !0;
                 openAgentSettings()
             };
-            setTimeout(function() {
-                input.focus();
-                input.select()
-            }, 30)
+            // Focus inside the tap handler so iPhone opens the keyboard.
+            input.focus();
+            input.select()
         }
 
         async function openAgentSettings() {

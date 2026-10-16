@@ -154,10 +154,10 @@ export async function startStack({ port = 54399 } = {}) {
   // One origin that looks like Supabase: /rest/v1 -> PostgREST, /functions/v1/lh-agent-api -> Deno, /auth/v1 -> stub.
   const proxy = createServer(async (req, res) => {
     const cors = {
-      "Access-Control-Allow-Origin": req.headers.origin || "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, prefer, accept-profile, content-profile, x-supabase-api-version",
-      "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-      "Access-Control-Expose-Headers": "content-range",
+      "access-control-allow-origin": req.headers.origin || "*",
+      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, prefer, accept-profile, content-profile, x-supabase-api-version",
+      "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+      "access-control-expose-headers": "content-range",
     };
     if (req.method === "OPTIONS") { res.writeHead(204, cors); res.end(); return; }
     const url = req.url || "/";
@@ -184,7 +184,7 @@ export async function startStack({ port = 54399 } = {}) {
     try {
       const r = await fetch(target, { method: req.method, headers, body });
       const out = Buffer.from(await r.arrayBuffer());
-      const h = Object.fromEntries([...r.headers].filter(([k]) => !["content-encoding", "content-length", "transfer-encoding", "connection"].includes(k)));
+      const h = Object.fromEntries([...r.headers].filter(([k]) => !["content-encoding", "content-length", "transfer-encoding", "connection"].includes(k) && !k.startsWith("access-control-")));
       res.writeHead(r.status, { ...h, ...cors });
       res.end(out);
     } catch (err) {
