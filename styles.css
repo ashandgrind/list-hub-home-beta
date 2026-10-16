@@ -1197,6 +1197,41 @@ body:has(#sheet:not(.hidden)) .toast {
 .agent-row .meta {
     margin: 2px 0 0
 }
+.agent-row-main {
+    flex: 1;
+    min-width: 0
+}
+.agent-label {
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed var(--line);
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    padding: 2px 0;
+    cursor: pointer;
+    text-align: left
+}
+.agent-label-pen {
+    opacity: .6;
+    font-weight: 400
+}
+.agent-label-form {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap
+}
+.agent-label-input {
+    flex: 1;
+    min-width: 120px;
+    font-size: 16px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg2);
+    color: inherit
+}
 .agent-url,
 .agent-instructions {
     width: 100%;

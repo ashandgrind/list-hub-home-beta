@@ -54,17 +54,34 @@ function lhAuthRedirect() {
         return e ? e.charAt(0).toUpperCase() + e.slice(1) : ""
     }
 
+    function titleCaseLabel(t) {
+        return String(t || "").replace(/\b([a-z])/g, function(e) {
+            return e.toUpperCase()
+        })
+    }
+
+    function tokenLabelFor(id) {
+        var labels = w && w.tokenLabels || {};
+        var v = id && labels[id];
+        return v ? String(v).trim() : ""
+    }
+
     function adderLabel(e) {
         if (!e) return "";
+        if (e.added_by_token_id) {
+            // Agent token: show the token's CURRENT label so renames relabel old items.
+            var live = tokenLabelFor(e.added_by_token_id);
+            if (live) return titleCaseLabel(live);
+            var stored = String(e.created_by || "").trim();
+            if (stored && !/^unknown$/i.test(stored)) return titleCaseLabel(stored)
+        }
         if (e.added_by_kind === "unknown") return "";
         var t = String(e.created_by || "").trim();
         if (!t || /^unknown$/i.test(t)) return "";
         if (e.added_by_kind === "assistant" || /shopping\s*buddy/i.test(t) || /^assistant$/i.test(t)) return "Shopping Buddy";
         if (/^chris$/i.test(t)) return "Chris";
         if (/^ellen$/i.test(t)) return "Ellen";
-        return t.replace(/\b([a-z])/g, function(e) {
-            return e.toUpperCase()
-        })
+        return titleCaseLabel(t)
     }
 
     function money(e) {
@@ -222,6 +239,13 @@ function lhAuthRedirect() {
         return "paused" === e.status ? "Paused" : "once" === e.frequency ? "Finding" : "daily" === e.frequency ? "Daily" : "Weekly"
     }
 
+    async function loadTokenLabels() {
+        try {
+            var res = await _().rpc("lh_agent_token_labels");
+            if (!res.error && res.data && "object" == typeof res.data) w.tokenLabels = res.data
+        } catch (e) {}
+    }
+
     async function hydrateExtras() {
         try {
             var e = await _().from("lh_items").select("id,notes,target_price,preferred_source,product_links,added_by_user_id,added_by_kind,created_by,created_at,preferred_store_id");
@@ -231,6 +255,22 @@ function lhAuthRedirect() {
                 });
                 t && Object.assign(t, e)
             })
+        } catch (e) {}
+        // Token stamps + current token labels (separate queries so the app keeps
+        // working before the token-label migration is applied).
+        try {
+            var stamp = await _().from("lh_items").select("id,added_by_token_id");
+            !stamp.error && stamp.data && stamp.data.forEach(function(e) {
+                var t = w.items.find(function(t) {
+                    return t.id === e.id
+                });
+                t && (t.added_by_token_id = e.added_by_token_id || null)
+            })
+        } catch (e) {}
+        await loadTokenLabels();
+        try {
+            var hh = await _().from("lh_households").select("id,name").limit(1);
+            !hh.error && hh.data && hh.data[0] && hh.data[0].name && (w.householdName = String(hh.data[0].name).trim())
         } catch (e) {}
         try {
             var sub = await _().from("lh_items").select("id,subsection");
@@ -2301,34 +2341,56 @@ function lhAuthRedirect() {
             return msg
         }
 
+        function agentHouseholdName() {
+            var name = String(w.householdName || "").trim();
+            return name || "your household"
+        }
+
         function agentInstructionsSnippet() {
             var base = agentApiBaseUrl();
             return [
-                "You are helping the Pollock household shop with List Hub.",
+                "You are helping " + agentHouseholdName() + " keep its List Hub grocery list. You can read the list, add items, remove items, and mark progress while shopping.",
                 "",
                 "API base: " + base,
-                "Auth header: Authorization: Bearer <paste the lh_ token from List Hub → Menu → AI agents>",
+                "Send this header on every request:",
+                "  Authorization: Bearer <the lh_ token from List Hub, Menu, AI agents>",
+                "Items you add show in the app with this token's label as who added them.",
                 "",
-                "Read the open grocery list (markdown, grouped by store then section):",
-                "  GET " + base + "/list?format=markdown&status=open",
-                "",
-                "JSON (includes item ids for updates):",
+                "READ",
                 "  GET " + base + "/list?format=json&status=open",
+                "    Open grocery list. JSON includes each item's id, which you need for any change.",
+                "  GET " + base + "/list?format=markdown&status=open",
+                "    Same list, grouped by store, then section.",
+                "  GET " + base + "/wishlist?format=json&status=open",
+                "    Open wishlist.",
                 "",
-                "Wishlist:",
-                "  GET " + base + "/wishlist?format=markdown",
+                "ADD (grocery list only)",
+                "  POST " + base + "/items",
+                "  { \"name\": \"beef jerky\", \"quantity\": \"2\", \"store\": \"Publix\", \"note\": \"original flavor\" }",
+                "    name is required (up to 200 characters). quantity (up to 60), store, and note (up to 240) are optional.",
+                "    store must be one of the household's stores (name, slug, or id). An unknown store returns 400 with the list of store names.",
                 "",
-                "After you add something to a store cart, or learn it is unavailable or already bought:",
+                "REMOVE",
+                "  POST " + base + "/items/{id}/remove",
+                "    Deletes the item from the List or Wishlist, same as the remove button in the app. It is logged, and it does not count as a purchase.",
+                "    If it was bought, use status bought instead so the purchase is recorded.",
+                "",
+                "PROGRESS WHILE SHOPPING",
                 "  POST " + base + "/items/{id}/status",
                 "  { \"status\": \"in_cart\" | \"bought\" | \"unavailable\", \"store\": \"Publix\", \"note\": \"optional\" }",
+                "    in_cart: you put it in a store cart. It stays on the list.",
+                "    bought: it was purchased. It is checked off and recorded as a purchase.",
+                "    unavailable: that store did not have it. It stays on the list.",
                 "",
-                "in_cart = you put it in a store cart (it stays on the List).",
-                "bought = they have it (checks it off and records a purchase).",
-                "unavailable = that store did not have it (it stays on the List).",
+                "Full spec, no token needed: GET " + base + "/openapi.json",
                 "",
-                "OpenAPI: GET " + base + "/openapi.json",
-                "",
-                "Group by preferred store, then store section (Produce, Dairy, …). Use the item name and quantity. Preferred store may be empty — ask which store they are shopping. Do not invent items. Do not spend money. Do not email anyone."
+                "Rules:",
+                "- Check the list before adding. Do not add something that is already on it.",
+                "- Confirm with the person before removing more than one item.",
+                "- Only change items when the person asks. Use ids from your latest GET, never guess an id.",
+                "- Group by preferred store, then section. If the preferred store is empty, ask which store they are shopping.",
+                "- Do not invent items. Do not spend money. Do not email or message anyone.",
+                "- 401 means the token is wrong or revoked. 429 means wait a minute and try again."
             ].join("\n")
         }
 
@@ -2470,6 +2532,11 @@ function lhAuthRedirect() {
             l("#agent-setpw") && (l("#agent-setpw").onclick = function() {
                 z("Set a password", "Lets you sign in with email + password when you don’t want to wait for an email.")
             });
+            u("#sheet [data-label-edit]").forEach(function(btn) {
+                btn.onclick = function() {
+                    startAgentLabelEdit(btn)
+                }
+            });
             u("#sheet [data-revoke]").forEach(function(btn) {
                 btn.onclick = async function() {
                     var tokenId = btn.getAttribute("data-revoke");
@@ -2492,6 +2559,55 @@ function lhAuthRedirect() {
             })
         }
 
+        function startAgentLabelEdit(btn) {
+            var tokenId = btn.getAttribute("data-label-edit"),
+                current = btn.getAttribute("data-label") || "";
+            if (!tokenId) return;
+            var form = document.createElement("form");
+            form.className = "agent-label-form";
+            form.innerHTML = '<input class="agent-label-input" type="text" maxlength="80" enterkeyhint="done" aria-label="Agent label"><button type="submit" class="btn primary sm">Save</button><button type="button" class="btn ghost sm" data-label-cancel>Cancel</button>';
+            var input = form.querySelector("input");
+            input.value = current;
+            btn.replaceWith(form);
+            var done = !1;
+            async function save() {
+                if (done) return;
+                var next = input.value.trim();
+                if (!next) return f("Label can’t be empty.");
+                if (next === current) return done = !0, void openAgentSettings();
+                done = !0;
+                input.disabled = !0;
+                try {
+                    var res = await _().rpc("lh_rename_agent_token", {
+                        id: tokenId,
+                        label: next
+                    });
+                    if (res.error) return done = !1, input.disabled = !1, void f(agentRpcErrorMessage(res.error), 5e3);
+                    w.tokenLabels = w.tokenLabels || {};
+                    w.tokenLabels[tokenId] = res.data && res.data.label || next;
+                    f("Label saved. Items this agent added now show “" + titleCaseLabel(w.tokenLabels[tokenId]) + "”.");
+                    se();
+                    openAgentSettings()
+                } catch (err) {
+                    done = !1;
+                    input.disabled = !1;
+                    f(agentRpcErrorMessage(err), 5e3)
+                }
+            }
+            form.onsubmit = function(ev) {
+                ev.preventDefault();
+                save()
+            };
+            form.querySelector("[data-label-cancel]").onclick = function() {
+                done = !0;
+                openAgentSettings()
+            };
+            setTimeout(function() {
+                input.focus();
+                input.select()
+            }, 30)
+        }
+
         async function openAgentSettings() {
             var listed = [];
             var listErr = "";
@@ -2505,11 +2621,13 @@ function lhAuthRedirect() {
             var fresh = agentSettingsFresh;
             var needsPassword = l("#setpw-btn") && !l("#setpw-btn").classList.contains("hidden");
             var tokenRows = listed.length ? listed.map(function(tok) {
-                return '<div class="agent-row"><div><strong>' + h(tok.name || "Agent") + "</strong><p class=\"meta\">Created " + h(agentWhen(tok.created_at)) + (tok.created_by ? " · " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + "</p></div><button type=\"button\" class=\"btn ghost sm danger\" data-revoke=\"" + h(tok.id) + "\">Revoke</button></div>"
+                var label = tok.label || tok.name || "Agent";
+                var nameNote = tok.name && tok.name !== label ? " · token name " + h(tok.name) : "";
+                return '<div class="agent-row" data-token-row="' + h(tok.id) + '"><div class="agent-row-main"><button type="button" class="agent-label" data-label-edit="' + h(tok.id) + '" data-label="' + h(label) + '" title="Tap to rename the label shown on items this agent adds">' + h(titleCaseLabel(label)) + ' <span class="agent-label-pen" aria-hidden="true">✎</span></button><p class="meta">Shows on items it adds' + nameNote + " · created " + h(agentWhen(tok.created_at)) + (tok.created_by ? " by " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + "</p></div><button type=\"button\" class=\"btn ghost sm danger\" data-revoke=\"" + h(tok.id) + "\">Revoke</button></div>"
             }).join("") : '<p class="hint">No active tokens yet.</p>';
             U('<div class="modal-top"><strong>Menu</strong><button class="btn ghost sm" data-close>Close</button></div>' +
                 (needsPassword ? '<button type="button" class="btn wide" id="agent-setpw">🔑 Set a password</button>' : "") +
-                '<div class="agent-sec"><h3>AI agents</h3><p class="hint" style="margin-top:0">Create a named token so Grok, ChatGPT, Claude, or a custom agent can read this household’s list and fill a store cart. The token is shown once — copy it now.</p>' +
+                '<div class="agent-sec"><h3>AI agents</h3><p class="hint" style="margin-top:0">Create a named token so Grok, ChatGPT, Claude, or a custom agent can read this household’s list, add and remove items, and mark what it put in a cart. Items it adds show its label, and you can tap a label to rename it. The token is shown once, so copy it right away.</p>' +
                 '<div class="agent-create"><input id="agent-token-name" type="text" maxlength="80" placeholder="Name (Grok Bot, ChatGPT…)" enterkeyhint="done"><button type="button" class="btn primary" id="agent-create-btn">Create</button></div>' +
                 (fresh && fresh.token ? '<div class="agent-once" id="agent-fresh"><strong>Copy this token now.</strong> It will not be shown again.<code class="agent-token-value">' + h(fresh.token) + '</code><button type="button" class="btn sm" id="agent-copy-fresh">Copy token</button></div>' : "") +
                 (listErr ? '<p class="error">' + h(listErr) + "</p>" : "") +
