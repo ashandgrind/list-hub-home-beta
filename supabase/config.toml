@@ -10,3 +10,10 @@ verify_jwt = true
 
 [functions.lh-agent-api]
 verify_jwt = false
+
+# Imported 2026-10-16 from the deployed functions (both deployed with JWT verification ON).
+[functions.lh-transcribe]
+verify_jwt = true
+
+[functions.lh-product-lookup]
+verify_jwt = true
