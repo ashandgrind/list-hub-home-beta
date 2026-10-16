@@ -428,6 +428,34 @@ function openApiSpec(req: Request) {
           },
         },
       },
+      "/items": {
+        post: {
+          tags: ["items"],
+          summary: "Add one grocery item",
+          description: "Inserts one needed row on the household grocery list (not the wishlist). Name only.",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/AddBody" } } },
+          },
+          responses: {
+            "200": { description: "Inserted", content: { "application/json": { schema: { $ref: "#/components/schemas/AddResult" } } } },
+            "400": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+        },
+      },
+      "/items/{id}/remove": {
+        post: {
+          tags: ["items"],
+          summary: "Remove one item",
+          description: "Deletes the row. Same as the app remove button. Does not set status to checked or bought, so no purchase is recorded.",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: {
+            "200": { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/RemoveResult" } } } },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+        },
+      },
       "/items/{id}/status": {
         post: {
           tags: ["items"],
@@ -490,6 +518,27 @@ function openApiSpec(req: Request) {
             items: { type: "array", items: { $ref: "#/components/schemas/Item" } },
           },
         },
+        AddBody: {
+          type: "object",
+          required: ["name"],
+          properties: { name: { type: "string" } },
+        },
+        AddResult: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean" },
+            item: { $ref: "#/components/schemas/Item" },
+          },
+        },
+        RemoveResult: {
+          type: "object",
+          properties: {
+            ok: { type: "boolean" },
+            id: { type: "string" },
+            name: { type: "string" },
+            removed: { type: "string", enum: ["deleted"] },
+          },
+        },
         StatusBody: {
           type: "object",
           required: ["status"],
@@ -525,6 +574,52 @@ function openApiSpec(req: Request) {
   };
 }
 
+async function groceryListId(householdId: string) {
+  const { data: lists, error } = await hub
+    .from("lists")
+    .select("id, kind, status")
+    .eq("household_id", householdId)
+    .neq("status", "archived");
+  if (error) throw error;
+  const rows = (lists || []).filter((row: { kind: string }) => row.kind !== "wish");
+  const needs = rows.find((row: { kind: string }) => row.kind === "needs") || rows[0];
+  return needs ? (needs.id as string) : null;
+}
+
+async function addItem(householdId: string, body: { name?: string }) {
+  const name = String(body?.name || "").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 200) {
+    return { code: 400, body: { error: "bad_name", message: "name is required." } };
+  }
+  const listId = await groceryListId(householdId);
+  if (!listId) return { code: 404, body: { error: "not_found", message: "No grocery list." } };
+  const { data, error } = await hub
+    .from("items")
+    .insert({ list_id: listId, name, status: "needed", added_by_kind: "assistant" })
+    .select("id, name, qty, notes, category, subsection, preferred_store_id, status, agent_state, agent_note")
+    .single();
+  if (error) throw error;
+  return { code: 200, body: { ok: true, item: exportItem({ ...data, store_name: null }) } };
+}
+
+async function removeItem(householdId: string, itemId: string) {
+  const { data: item, error } = await hub
+    .from("items")
+    .select("id, list_id, name")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!item) return { code: 404, body: { error: "not_found", message: "No item with that id." } };
+  const { data: list } = await hub.from("lists").select("id, household_id").eq("id", item.list_id).maybeSingle();
+  if (!list || list.household_id !== householdId) {
+    return { code: 404, body: { error: "not_found", message: "No item with that id on this household." } };
+  }
+  // The app remove button deletes the row. checked/bought fires items_record_purchase.
+  const { error: deleted } = await hub.from("items").delete().eq("id", itemId);
+  if (deleted) throw deleted;
+  return { code: 200, body: { ok: true, id: itemId, name: item.name, removed: "deleted" } };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
   const { url, path } = routePath(req);
@@ -558,6 +653,12 @@ Deno.serve(async (req) => {
       return json(req, 200, payload.body);
     }
 
+    if (req.method === "POST" && path === "/items") {
+      const body = await req.json().catch(() => ({}));
+      const result = await addItem(authed.token.household_id, body || {});
+      return json(req, result.code, result.body);
+    }
+
     const statusMatch = path.match(/^\/items\/([0-9a-f-]{36})\/status$/i);
     if (req.method === "POST" && statusMatch) {
       const body = await req.json().catch(() => ({}));
@@ -565,11 +666,17 @@ Deno.serve(async (req) => {
       return json(req, result.code, result.body);
     }
 
+    const removeMatch = path.match(/^\/items\/([0-9a-f-]{36})\/remove$/i);
+    if (req.method === "POST" && removeMatch) {
+      const result = await removeItem(authed.token.household_id, removeMatch[1]);
+      return json(req, result.code, result.body);
+    }
+
     if (path === "/" || path === "") {
       return json(req, 200, {
         name: "List Hub Agent API",
         docs: apiBase(req) + "/openapi.json",
-        endpoints: ["GET /list", "GET /wishlist", "POST /items/{id}/status", "GET /openapi.json"],
+        endpoints: ["GET /list", "GET /wishlist", "POST /items", "POST /items/{id}/remove", "POST /items/{id}/status", "GET /openapi.json"],
       });
     }
 

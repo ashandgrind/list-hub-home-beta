@@ -64,6 +64,18 @@ Each item: `id`, `name`, `quantity`, `note`, `section`, `subsection`, `preferred
 
 Same shape for Wishlist items.
 
+### `POST /items`
+
+```json
+{ "name": "oats" }
+```
+
+Inserts one row on the household grocery list (`kind` is not `wish`, `status` `needed`). Name only. Returns the item.
+
+### `POST /items/{id}/remove`
+
+Deletes that row. This is the same write as the app remove button. It does not set `status` to `checked` or `bought`, so `items_record_purchase` does not run.
+
 ### `POST /items/{id}/status`
 
 ```json
