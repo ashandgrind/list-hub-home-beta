@@ -84,7 +84,16 @@ function apiBase(_req: Request) {
   return `https://${PROJECT_REF}.supabase.co/functions/v1/lh-agent-api`;
 }
 
-type AgentToken = { id: string; household_id: string; name: string };
+type AgentToken = { id: string; household_id: string; name: string; label: string };
+
+const MAX_NAME = 200;
+const MAX_QTY = 60;
+const MAX_NOTE = 240;
+
+function tokenLabel(row: { name: string; label?: string | null }) {
+  const label = String(row.label || "").trim();
+  return label || row.name;
+}
 
 async function authAgent(req: Request): Promise<{ token: AgentToken } | { error: Response }> {
   const raw = bearerToken(req);
@@ -92,11 +101,19 @@ async function authAgent(req: Request): Promise<{ token: AgentToken } | { error:
     return { error: json(req, 401, { error: "unauthorized", message: "Send Authorization: Bearer lh_… (create a token in List Hub → Menu → AI agents)." }) };
   }
   const hash = await sha256Hex(raw);
-  const { data, error } = await hub
+  let { data, error } = await hub
     .from("agent_tokens")
-    .select("id, household_id, name, revoked_at")
+    .select("id, household_id, name, label, revoked_at")
     .eq("token_hash", hash)
     .maybeSingle();
+  if (error && /label/i.test(error.message || "")) {
+    // Token-label migration not applied yet: fall back to the token name.
+    ({ data, error } = await hub
+      .from("agent_tokens")
+      .select("id, household_id, name, revoked_at")
+      .eq("token_hash", hash)
+      .maybeSingle());
+  }
   if (error) {
     console.error("lh-agent-api token lookup", error.message);
     return { error: json(req, 500, { error: "lookup_failed", message: "Could not check that token." }) };
@@ -105,7 +122,7 @@ async function authAgent(req: Request): Promise<{ token: AgentToken } | { error:
     return { error: json(req, 401, { error: "unauthorized", message: "Unknown or revoked agent token." }) };
   }
   hub.from("agent_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {}, () => {});
-  return { token: { id: data.id, household_id: data.household_id, name: data.name } };
+  return { token: { id: data.id, household_id: data.household_id, name: data.name, label: tokenLabel(data) } };
 }
 
 type ItemRow = {
@@ -309,7 +326,8 @@ async function resolveStore(householdId: string, store: string | null) {
   return hit || null;
 }
 
-async function updateItemStatus(householdId: string, itemId: string, body: { status?: string; store?: string; note?: string }) {
+async function updateItemStatus(token: AgentToken, itemId: string, body: { status?: string; store?: string; note?: string }) {
+  const householdId = token.household_id;
   const status = String(body.status || "").trim().toLowerCase();
   if (!["in_cart", "bought", "unavailable"].includes(status)) {
     return { code: 400, body: { error: "bad_status", message: "status must be in_cart, bought, or unavailable." } };
@@ -328,7 +346,11 @@ async function updateItemStatus(householdId: string, itemId: string, body: { sta
   const store = await resolveStore(householdId, body.store || null);
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 240) : "";
   const now = new Date().toISOString();
-  const patch: Record<string, unknown> = { updated_at: now, agent_note: note || item.agent_note || null };
+  const patch: Record<string, unknown> = {
+    updated_at: now,
+    agent_note: note || item.agent_note || null,
+    agent_by_token_id: token.id,
+  };
   if (store) patch.preferred_store_id = store.id;
   if (status === "bought") {
     // Check-off: existing items_record_purchase trigger records the purchase.
@@ -340,6 +362,18 @@ async function updateItemStatus(householdId: string, itemId: string, body: { sta
   }
   const { data: updated, error: ue } = await hub.from("items").update(patch).eq("id", itemId).select("id, name, status, preferred_store_id, agent_state, agent_note, qty, notes, category, subsection").maybeSingle();
   if (ue) throw ue;
+  if (status === "bought") {
+    // items_record_purchase writes created_by = 'system' for service-role updates.
+    // Stamp the token label on the purchase row it just wrote.
+    await hub
+      .from("purchases")
+      .update({ created_by: token.label })
+      .eq("item_id", itemId)
+      .eq("source", "checkoff")
+      .eq("created_by", "system")
+      .gte("purchased_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+      .then(() => {}, (err: unknown) => console.error("lh-agent-api purchase stamp", String(err)));
+  }
   return {
     code: 200,
     body: {
@@ -349,6 +383,7 @@ async function updateItemStatus(householdId: string, itemId: string, body: { sta
       mapped_status: status === "bought" ? "checked" : item.status,
       agent_state: status === "bought" ? null : status,
       store: store ? store.name : null,
+      by: token.label,
       item: updated,
     },
   };
@@ -360,9 +395,9 @@ function openApiSpec(req: Request) {
     openapi: "3.1.0",
     info: {
       title: "List Hub Agent API",
-      version: "1.0.0",
+      version: "1.1.0",
       description:
-        "Read the Pollock household grocery List and Wishlist, then mark items in_cart / bought / unavailable after filling a store cart. Authenticate with a household agent token (prefix lh_).",
+        "Read a household's grocery List and Wishlist, add grocery items (name, quantity, store, note), remove items (logged), and mark items in_cart, bought, or unavailable. Authenticate with a household agent token (prefix lh_). Items an agent adds show the token's label in the app.",
     },
     servers: [{ url: base, description: "List Hub agent API" }],
     security: [{ AgentToken: [] }],
@@ -432,7 +467,8 @@ function openApiSpec(req: Request) {
         post: {
           tags: ["items"],
           summary: "Add one grocery item",
-          description: "Inserts one needed row on the household grocery list (not the wishlist). Name only.",
+          description:
+            "Inserts one needed row on the household grocery list (not the wishlist). quantity, store (name, slug, or id of a household store), and note are optional. The item shows the token's label as who added it.",
           requestBody: {
             required: true,
             content: { "application/json": { schema: { $ref: "#/components/schemas/AddBody" } } },
@@ -440,6 +476,7 @@ function openApiSpec(req: Request) {
           responses: {
             "200": { description: "Inserted", content: { "application/json": { schema: { $ref: "#/components/schemas/AddResult" } } } },
             "400": { $ref: "#/components/responses/Error" },
+            "401": { $ref: "#/components/responses/Error" },
             "404": { $ref: "#/components/responses/Error" },
           },
         },
@@ -448,7 +485,8 @@ function openApiSpec(req: Request) {
         post: {
           tags: ["items"],
           summary: "Remove one item",
-          description: "Deletes the row. Same as the app remove button. Does not set status to checked or bought, so no purchase is recorded.",
+          description:
+            "Deletes the row (List or Wishlist). Same as the app remove button. No purchase is recorded. The removal is logged in list_hub.item_removals with this token's id and label.",
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: {
             "200": { description: "Deleted", content: { "application/json": { schema: { $ref: "#/components/schemas/RemoveResult" } } } },
@@ -521,12 +559,18 @@ function openApiSpec(req: Request) {
         AddBody: {
           type: "object",
           required: ["name"],
-          properties: { name: { type: "string" } },
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: MAX_NAME },
+            quantity: { type: "string", maxLength: MAX_QTY, description: "Free text, e.g. 2 or 2 dozen" },
+            store: { type: "string", maxLength: 80, description: "Preferred store: name, slug, or id of a household store" },
+            note: { type: "string", maxLength: MAX_NOTE },
+          },
         },
         AddResult: {
           type: "object",
           properties: {
             ok: { type: "boolean" },
+            added_by: { type: "string", description: "Label of the token that added it" },
             item: { $ref: "#/components/schemas/Item" },
           },
         },
@@ -537,6 +581,7 @@ function openApiSpec(req: Request) {
             id: { type: "string" },
             name: { type: "string" },
             removed: { type: "string", enum: ["deleted"] },
+            removed_by: { type: "string", description: "Label of the token that removed it" },
           },
         },
         StatusBody: {
@@ -557,6 +602,7 @@ function openApiSpec(req: Request) {
             mapped_status: { type: "string" },
             agent_state: { type: ["string", "null"] },
             store: { type: ["string", "null"] },
+            by: { type: "string", description: "Label of the token that made the change" },
           },
         },
         Error: {
@@ -586,38 +632,72 @@ async function groceryListId(householdId: string) {
   return needs ? (needs.id as string) : null;
 }
 
-async function addItem(householdId: string, body: { name?: string }) {
-  const name = String(body?.name || "").replace(/\s+/g, " ").trim();
-  if (!name || name.length > 200) {
-    return { code: 400, body: { error: "bad_name", message: "name is required." } };
+function optionalText(value: unknown, field: string, max: number): { value: string | null } | { error: string } {
+  if (value === undefined || value === null) return { value: null };
+  if (typeof value !== "string" && typeof value !== "number") return { error: `${field} must be a string.` };
+  const v = String(value).replace(/\s+/g, " ").trim();
+  if (!v) return { value: null };
+  if (v.length > max) return { error: `${field} must be ${max} characters or fewer.` };
+  return { value: v };
+}
+
+async function addItem(token: AgentToken, body: { name?: unknown; quantity?: unknown; store?: unknown; note?: unknown }) {
+  const householdId = token.household_id;
+  const name = typeof body?.name === "string" ? body.name.replace(/\s+/g, " ").trim() : "";
+  if (!name) return { code: 400, body: { error: "bad_name", message: "name is required." } };
+  if (name.length > MAX_NAME) return { code: 400, body: { error: "bad_name", message: `name must be ${MAX_NAME} characters or fewer.` } };
+  const qty = optionalText(body?.quantity, "quantity", MAX_QTY);
+  if ("error" in qty) return { code: 400, body: { error: "bad_quantity", message: qty.error } };
+  const note = optionalText(body?.note, "note", MAX_NOTE);
+  if ("error" in note) return { code: 400, body: { error: "bad_note", message: note.error } };
+  const storeIn = optionalText(body?.store, "store", 80);
+  if ("error" in storeIn) return { code: 400, body: { error: "bad_store", message: storeIn.error } };
+  let store: { id: string; name: string } | null = null;
+  if (storeIn.value) {
+    store = await resolveStore(householdId, storeIn.value);
+    if (!store) {
+      const { data: stores } = await hub.from("stores").select("name").eq("household_id", householdId);
+      const names = (stores || []).map((s: { name: string }) => s.name);
+      return { code: 400, body: { error: "unknown_store", message: `No store named "${storeIn.value}". Known stores: ${names.join(", ") || "none"}.`, stores: names } };
+    }
   }
   const listId = await groceryListId(householdId);
   if (!listId) return { code: 404, body: { error: "not_found", message: "No grocery list." } };
   const { data, error } = await hub
     .from("items")
-    .insert({ list_id: listId, name, status: "needed", added_by_kind: "assistant" })
-    .select("id, name, qty, notes, category, subsection, preferred_store_id, status, agent_state, agent_note")
+    .insert({
+      list_id: listId,
+      name,
+      qty: qty.value,
+      notes: note.value,
+      preferred_store_id: store ? store.id : null,
+      status: "needed",
+      added_by_kind: "assistant",
+      added_by_token_id: token.id,
+    })
+    .select("id, name, qty, notes, category, subsection, preferred_store_id, status, agent_state, agent_note, created_by")
     .single();
   if (error) throw error;
-  return { code: 200, body: { ok: true, item: exportItem({ ...data, store_name: null }) } };
+  return {
+    code: 200,
+    body: {
+      ok: true,
+      added_by: data.created_by || token.label,
+      item: exportItem({ ...data, store_name: store ? store.name : null }),
+    },
+  };
 }
 
-async function removeItem(householdId: string, itemId: string) {
-  const { data: item, error } = await hub
-    .from("items")
-    .select("id, list_id, name")
-    .eq("id", itemId)
-    .maybeSingle();
+async function removeItem(token: AgentToken, itemId: string) {
+  // Same hard delete as the app remove button, done in lh_agent_remove_item so the
+  // items_log_removal trigger records this token in list_hub.item_removals.
+  // Wishlist items can be removed too. No purchase is recorded.
+  const { data, error } = await admin.rpc("lh_agent_remove_item", { p_item_id: itemId, p_token_id: token.id });
   if (error) throw error;
-  if (!item) return { code: 404, body: { error: "not_found", message: "No item with that id." } };
-  const { data: list } = await hub.from("lists").select("id, household_id").eq("id", item.list_id).maybeSingle();
-  if (!list || list.household_id !== householdId) {
+  if (!data || !data.ok) {
     return { code: 404, body: { error: "not_found", message: "No item with that id on this household." } };
   }
-  // The app remove button deletes the row. checked/bought fires items_record_purchase.
-  const { error: deleted } = await hub.from("items").delete().eq("id", itemId);
-  if (deleted) throw deleted;
-  return { code: 200, body: { ok: true, id: itemId, name: item.name, removed: "deleted" } };
+  return { code: 200, body: { ok: true, id: data.id, name: data.name, removed: "deleted", removed_by: data.removed_by } };
 }
 
 Deno.serve(async (req) => {
@@ -655,20 +735,20 @@ Deno.serve(async (req) => {
 
     if (req.method === "POST" && path === "/items") {
       const body = await req.json().catch(() => ({}));
-      const result = await addItem(authed.token.household_id, body || {});
+      const result = await addItem(authed.token, body || {});
       return json(req, result.code, result.body);
     }
 
     const statusMatch = path.match(/^\/items\/([0-9a-f-]{36})\/status$/i);
     if (req.method === "POST" && statusMatch) {
       const body = await req.json().catch(() => ({}));
-      const result = await updateItemStatus(authed.token.household_id, statusMatch[1], body || {});
+      const result = await updateItemStatus(authed.token, statusMatch[1], body || {});
       return json(req, result.code, result.body);
     }
 
     const removeMatch = path.match(/^\/items\/([0-9a-f-]{36})\/remove$/i);
     if (req.method === "POST" && removeMatch) {
-      const result = await removeItem(authed.token.household_id, removeMatch[1]);
+      const result = await removeItem(authed.token, removeMatch[1]);
       return json(req, result.code, result.body);
     }
 

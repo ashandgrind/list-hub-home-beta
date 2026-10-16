@@ -16,11 +16,11 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 - List grouped by section with subsection headers (Produce first, Frozen near the end)
 - Voice add and barcode scan (iPhone Safari / Chrome)
 - Store trip planning
-- Who added each item (Chris / Ellen / Shopping Buddy; older rows omit this)
+- Who added each item: Chris, Ellen, the label of the AI agent token that added it (editable in Menu > AI agents), or Shopping Buddy for the Shopping Buddy bot. Older rows omit this
 - Wishlist detail sheet: notes, target price, store/source, links, **Finds** log
 - **Find options** on Wishlist items (once / daily / weekly research jobs for Shopping Buddy)
 - Shopping Buddy can poll due jobs and log Finds — see [docs/finds.md](docs/finds.md)
-- **AI agent export**: Menu → AI agents (named `lh_` tokens) plus **Export for AI** on the List tab. Any assistant can read the list and fill a store cart — see [docs/AGENT_API.md](docs/AGENT_API.md)
+- **AI agents**: Menu > AI agents (named `lh_` tokens with editable labels) plus **Export for AI** on the List tab. Any assistant can read the list, add items (with quantity, store, note), remove items (logged in `list_hub.item_removals`), and mark cart progress. See [docs/AGENT_API.md](docs/AGENT_API.md)
 
 ## Sign in
 
