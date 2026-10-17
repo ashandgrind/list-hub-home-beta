@@ -774,11 +774,20 @@ function lhAuthRedirect() {
     function A(e) {
         return /security purposes|rate limit|429|seconds/i.test(e || "") ? "An email was just sent — please wait about a minute before requesting another, and check your inbox (and spam)." : e
     }
+    // Email link sent: swap the form for a clear "check your email" card.
+    function magicSent(email) {
+        var on = !!email;
+        l("#login-email").closest(".field").classList.toggle("hidden", on);
+        l("#magic-btn").classList.toggle("hidden", on);
+        l("#magic-hint").classList.toggle("hidden", on);
+        l("#magic-sent").classList.toggle("hidden", !on);
+        l("#magic-sent-detail").textContent = on ? "We sent it to " + email + ". Open it on this phone to sign in. It can take a minute, so check spam too." : ""
+    }
     async function M() {
         var e = p(l("#login-email").value);
-        if (v(""), b(""), !e) return v("Enter your email");
+        if (v(""), b(""), magicSent(""), !e) return v("Enter your email");
         var t = l("#magic-btn");
-        t.disabled = !0;
+        t.disabled = !0, t.textContent = "Sending…";
         try {
             var n = await I(e);
             if (n && !n.member) return v("That email isn’t on a List Hub household yet. Ask a household member for an invite link.");
@@ -789,12 +798,12 @@ function lhAuthRedirect() {
                     shouldCreateUser: !0
                 }
             });
-            if (a.error) return v(A(a.error.message));
-            b("Link sent to " + e + ". Open it on this phone — it signs you in right away.")
+            if (a.error) return v("Couldn’t send the sign-in link. " + A(a.error.message));
+            magicSent(e)
         } catch (e) {
-            v(e.message || "Could not send link")
+            v("Couldn’t send the sign-in link. " + (e.message || "Check your connection and try again."))
         } finally {
-            t.disabled = !1
+            t.disabled = !1, t.textContent = "Email me a sign-in link"
         }
     }
 
@@ -813,7 +822,7 @@ function lhAuthRedirect() {
             }), l("#auth-magic").classList.toggle("hidden", "magic" !== e.dataset.auth), l("#auth-password").classList.toggle("hidden", "password" !== e.dataset.auth);
             var t = l("#login-email").value,
                 n = l("#pw-email").value;
-            t && !n && (l("#pw-email").value = t), n && !t && (l("#login-email").value = n), v(""), b("")
+            t && !n && (l("#pw-email").value = t), n && !t && (l("#login-email").value = n), v(""), b(""), magicSent("")
         }
     });
     var q = 0;
@@ -898,7 +907,11 @@ function lhAuthRedirect() {
         var e = l("#sheet");
         e.classList.add("hidden"), e.setAttribute("aria-hidden", "true"), l("#sheet-card").innerHTML = ""
     }
-    l("#magic-btn").onclick = M, l("#login-email").addEventListener("keydown", function(e) {
+    l("#magic-again").onclick = function() {
+        magicSent(""), v(""), b("");
+        var i = l("#login-email");
+        i.focus(), i.select()
+    }, l("#magic-btn").onclick = M, l("#login-email").addEventListener("keydown", function(e) {
         "Enter" === e.key && (e.preventDefault(), M())
     }), l("#pw-signin-btn").onclick = D, l("#pw-password").addEventListener("keydown", function(e) {
         "Enter" === e.key && (e.preventDefault(), D())
