@@ -204,7 +204,7 @@ function sortExportItems(rows: ReturnType<typeof exportItem>[]) {
 
 function toMarkdown(kindLabel: string, rows: ReturnType<typeof exportItem>[]) {
   const items = sortExportItems(rows);
-  const lines = [`# List Hub — ${kindLabel}`, ""];
+  const lines = [`# List Hub: ${kindLabel}`, ""];
   if (!items.length) {
     lines.push("_Nothing open._", "");
     return lines.join("\n");
@@ -233,7 +233,7 @@ function toMarkdown(kindLabel: string, rows: ReturnType<typeof exportItem>[]) {
     }
     const qtyNote = [item.quantity, item.note].filter(Boolean).join(" · ");
     const state = item.agent_state ? ` (${item.agent_state.replace("_", " ")})` : "";
-    lines.push(`- [ ] ${item.name}${qtyNote ? ` — ${qtyNote}` : ""}${state}  \`${item.id}\``);
+    lines.push(`- [ ] ${item.name}${qtyNote ? `: ${qtyNote}` : ""}${state}  \`${item.id}\``);
   }
   lines.push("");
   return lines.join("\n");
