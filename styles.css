@@ -1259,6 +1259,63 @@ body:has(#sheet:not(.hidden)) .toast {
     margin-top: 8px;
     flex-wrap: wrap
 }
+.agent-copy-row a.btn {
+    text-decoration: none;
+    color: var(--text);
+    width: auto
+}
+/* Household invites */
+.invite-banner {
+    background: rgba(61, 214, 140, .12);
+    border: 1px solid rgba(61, 214, 140, .4);
+    color: #c8f2dc;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: .9rem;
+    line-height: 1.4;
+    margin: 0 0 14px;
+    text-align: left
+}
+.invite-banner.bad {
+    background: rgba(255, 107, 107, .1);
+    border-color: rgba(255, 107, 107, .4);
+    color: #ffd0d0
+}
+.invite-create,
+.admin-create {
+    flex-wrap: wrap
+}
+.invite-create input,
+.admin-create input {
+    flex: 1 1 160px
+}
+.admin-create {
+    display: flex;
+    gap: 8px
+}
+.admin-create input {
+    min-width: 0;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 12px;
+    outline: none;
+    font-size: 16px;
+    color: inherit
+}
+.admin-create .btn,
+.invite-create .btn {
+    flex: 0 0 auto;
+    width: auto
+}
+.invite-link {
+    margin-top: 8px
+}
+.invite-actions {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto
+}
 @media (max-width: 420px) {
     .top-actions .btn.sm {
         padding: 8px 10px;

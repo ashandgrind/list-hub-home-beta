@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f1419">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>List Hub</title>
-  <meta name="list-hub-build" content="lh7-agent-export">
+  <meta name="list-hub-build" content="lh8-households">
   <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co" crossorigin>
   <link rel="preconnect" href="https://dphkvcdohqsvefbdhsfx.supabase.co">
   <link rel="stylesheet" href="styles.css">
@@ -43,7 +43,8 @@
     <div class="gate-card">
       <div class="logo">🛒</div>
       <h1>List Hub</h1>
-      <p class="sub">Pollock household</p>
+      <p class="sub" id="gate-sub">Shared household lists</p>
+      <div id="invite-banner" class="invite-banner hidden" role="status"></div>
       <div class="auth-tabs" role="tablist">
         <button type="button" class="auth-tab active" data-auth="magic">Email link</button>
         <button type="button" class="auth-tab" data-auth="password">Password</button>
