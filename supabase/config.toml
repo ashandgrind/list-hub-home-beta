@@ -1,5 +1,5 @@
 # Partial config: function JWT flags only. This repo does not run a full local
-# Supabase stack. Deploy lh-agent-api with verify_jwt OFF — it authenticates
+# Supabase stack. Deploy lh-agent-api with verify_jwt OFF: it authenticates
 # with household agent tokens (Authorization: Bearer lh_...), not user JWTs.
 
 [functions.lh-categorize]
