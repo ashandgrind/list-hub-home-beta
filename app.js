@@ -6,7 +6,6 @@ function lhAuthRedirect() {
     "use strict";
     var e, t = "https://dphkvcdohqsvefbdhsfx.supabase.co",
         n = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaGt2Y2RvaHFzdmVmYmRoc2Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5OTcxMjIsImV4cCI6MjA5OTU3MzEyMn0.Ts8vvKm8VuOYCgmtKxNQe71Ga2qjUH5jiCSlOe9vxSo",
-        a = "a0000000-0000-4000-8000-000000000001",
         r = {
             Food: "🍎",
             Household: "🧻",
@@ -385,7 +384,7 @@ function lhAuthRedirect() {
             if (i && !isFinite(o)) return f("Price should be a number");
             var s = {
                 item_id: e.id,
-                household_id: a,
+                household_id: hhId(),
                 title: n,
                 price: o,
                 source: l("#find-source").value.trim() || null,
@@ -486,7 +485,7 @@ function lhAuthRedirect() {
             if (n && !isFinite(i)) return f("Max price should be a number");
             var o = {
                 item_id: e.id,
-                household_id: a,
+                household_id: hhId(),
                 frequency: freqPick,
                 max_price: i,
                 condition_pref: condPick && "any" !== condPick ? condPick : "any",
@@ -527,12 +526,113 @@ function lhAuthRedirect() {
     function y(e) {
         document.documentElement.className = "", l("#splash").classList.toggle("hidden", "splash" !== e), l("#gate").classList.toggle("hidden", "gate" !== e), l("#app").classList.toggle("hidden", "app" !== e), w.view = e
     }
+
+    // The signed-in member's household, from lh_bootstrap. Never hardcoded.
+    function hhId() {
+        return w.member && w.member.household_id || null
+    }
+
+    // ---- Household invites: links look like <app>/?invite=lhi_... ----
+    var INVITE_KEY = "lh-invite";
+
+    function pendingInvite() {
+        try {
+            var q = new URLSearchParams(location.search).get("invite");
+            if (q && /^lhi_[A-Za-z0-9_-]{20,120}$/.test(q)) {
+                localStorage.setItem(INVITE_KEY, JSON.stringify({
+                    token: q,
+                    at: Date.now()
+                }));
+                return q
+            }
+            var saved = JSON.parse(localStorage.getItem(INVITE_KEY) || "null");
+            if (saved && saved.token && Date.now() - saved.at < 8 * 864e5) return saved.token
+        } catch (e) {}
+        return null
+    }
+
+    function clearInvite() {
+        try {
+            localStorage.removeItem(INVITE_KEY)
+        } catch (e) {}
+        try {
+            var u = new URL(location.href);
+            u.searchParams.has("invite") && (u.searchParams.delete("invite"), history.replaceState(null, "", u.pathname + u.search + u.hash))
+        } catch (e) {}
+    }
+
+    function inviteLink(tok) {
+        return lhAuthRedirect() + "?invite=" + encodeURIComponent(tok)
+    }
+
+    function inviteRedirect() {
+        var tok = pendingInvite();
+        return tok ? inviteLink(tok) : lhAuthRedirect()
+    }
+
+    function inviteProblem(r) {
+        r = r || {};
+        var where = r.household_name ? " to " + r.household_name : "",
+            who = r.invited_by || "the person who invited you";
+        if ("expired" === r.status || "expired" === r.error) return "This invite" + where + " has expired. Ask " + who + " to send a new one.";
+        if ("used" === r.status || "used" === r.error) return "This invite" + where + " was already used. Ask " + who + " for a new one if you still need to join.";
+        if ("cancelled" === r.status || "cancelled" === r.error) return "This invite" + where + " was cancelled. Ask " + who + " for a new one.";
+        if ("wrong_email" === r.error) return "This invite" + where + " is for " + (r.email_hint || "a different email") + ". Sign out and sign in with that address.";
+        if ("already_member" === r.error) return "You’re already in a household. List Hub supports one household per person for now.";
+        return "This invite link isn’t valid. Ask for a new one."
+    }
+
+    async function showInviteGate() {
+        var tok = pendingInvite(),
+            box = l("#invite-banner"),
+            sub = l("#gate-sub");
+        if (!tok || !box) return;
+        try {
+            var r = await _().rpc("lh_invite_preview", {
+                p_token: tok
+            });
+            if (r.error || !r.data) return;
+            var pv = r.data;
+            if ("pending" === pv.status) {
+                sub && (sub.textContent = "Join " + (pv.household_name || "a household"));
+                box.innerHTML = "<strong>You’re invited to " + h(pv.household_name || "a List Hub household") + "</strong>" + (pv.invited_by ? " by " + h(pv.invited_by) : "") + ". " + (pv.email_hint ? "Sign in with " + h(pv.email_hint) + " to join." : "Sign in with your email to join.");
+                box.className = "invite-banner"
+            } else {
+                box.textContent = inviteProblem(pv);
+                box.className = "invite-banner bad";
+                clearInvite()
+            }
+        } catch (e) {}
+    }
+
+    async function acceptInvite(tok) {
+        try {
+            var r = await _().rpc("lh_accept_invite", {
+                p_token: tok
+            });
+            if (r.error) return {
+                ok: !1,
+                error: "network",
+                message: r.error.message
+            };
+            clearInvite();
+            return r.data || {
+                ok: !1
+            }
+        } catch (e) {
+            return {
+                ok: !1,
+                error: "network",
+                message: e.message
+            }
+        }
+    }
     d("script");
     var w = {
         view: null,
         session: null,
         member: null,
-        who: "chris",
+        who: "member",
         displayName: "",
         kind: localStorage.getItem("lh5-kind") || "needs",
         stores: [],
@@ -603,7 +703,8 @@ function lhAuthRedirect() {
     }
 
     function E(e) {
-        w.member = e.member, w.stores = e.stores || [], w.lists = e.lists || [], w.items = e.items || [], w.history = e.history || [], w.prefs = e.prefs || [], w.cats = e.cats || {}, w.subcats = e.subcats || {}, w.trips = e.trips || [], w.displayName = e.member && e.member.display_name || "Member", w.who = p(w.displayName) || "chris";
+        w.member = e.member, w.stores = e.stores || [], w.lists = e.lists || [], w.items = e.items || [], w.history = e.history || [], w.prefs = e.prefs || [], w.cats = e.cats || {}, w.subcats = e.subcats || {}, w.trips = e.trips || [], w.displayName = e.member && e.member.display_name || "Member", w.who = p(w.displayName) || "member";
+        e.household && e.household.name && (w.householdName = String(e.household.name).trim());
         if ((e.items || []).some(function(t) {
                 return t && Object.prototype.hasOwnProperty.call(t, "subsection")
             })) w.hasSubcol = !0;
@@ -631,8 +732,11 @@ function lhAuthRedirect() {
                 }(t);
             n && n.member && (E(n), y("app"), se(), d("cachedUI"), g("Syncing…"));
             try {
+                var inv = pendingInvite(),
+                    joined = inv ? await acceptInvite(inv) : null;
                 var a = await lhBootstrap();
-                if (d("bootstrap"), !a || !a.member) return await _().auth.signOut(), y("gate"), void v("This email isn’t on the Pollock household. Ask Chris to add you.");
+                if (d("bootstrap"), !a || !a.member) return await _().auth.signOut(), y("gate"), void v(joined && !joined.ok && "network" !== joined.error ? inviteProblem(joined) : "This email isn’t on a List Hub household yet. Ask someone in your household to send you an invite.");
+                joined && (joined.ok && !joined.already ? f("Welcome to " + (joined.household_name || "your household") + "!", 5e3) : joined.ok || "network" === joined.error || f(inviteProblem(joined), 7e3));
                 E(a), L(t, a), w.loadedAt = Date.now(), a.member.user_id || _().rpc("lh_claim_member").then(function() {}, function() {}), await hydrateExtras(), y("app"), se(), g(""), d("signedIn"), P(), H()
             } catch (e) {
                 d("bootstrapErr"), n ? g("Offline — showing saved list (" + (e.message || "network") + ")", !0) : (y("gate"), v("Signed in, but couldn’t load your list: " + (e.message || "network error") + ". Try again."))
@@ -654,9 +758,13 @@ function lhAuthRedirect() {
     }
     async function I(e) {
         try {
-            var t = await _().rpc("lh_auth_hint", {
-                p_email: e
-            });
+            var tok = pendingInvite(),
+                t = await _().rpc("lh_auth_hint", tok ? {
+                    p_email: e,
+                    p_invite: tok
+                } : {
+                    p_email: e
+                });
             return t.error ? null : t.data
         } catch (e) {
             return null
@@ -673,11 +781,11 @@ function lhAuthRedirect() {
         t.disabled = !0;
         try {
             var n = await I(e);
-            if (n && !n.member) return v("That email isn’t on this household. Only Chris & Ellen can sign in.");
+            if (n && !n.member) return v("That email isn’t on a List Hub household yet. Ask a household member for an invite link.");
             var a = await _().auth.signInWithOtp({
                 email: e,
                 options: {
-                    emailRedirectTo: lhAuthRedirect(),
+                    emailRedirectTo: inviteRedirect(),
                     shouldCreateUser: !0
                 }
             });
@@ -722,7 +830,7 @@ function lhAuthRedirect() {
             });
             if (a.error) {
                 var i = await I(e);
-                return i && !i.member ? v("That email isn’t on this household.") : i && !i.account ? j("There’s no account for <b>" + h(e) + "</b> yet. Tap <b>Create my password</b> to make one with the password you typed.", !1, !0) : i && !i.password_set ? j("<b>This account doesn’t have a password yet.</b> It was created with an email sign-in link, so no password you’ve used elsewhere will work here. Tap below to get a one-time link that lets you choose a password (or just use the Email link tab).", !0, !1) : j("That password didn’t match. Forgot it? Tap below and we’ll email you a link to set a new one.", !0, !1)
+                return i && !i.member ? v("That email isn’t on a List Hub household yet.") : i && !i.account ? j("There’s no account for <b>" + h(e) + "</b> yet. Tap <b>Create my password</b> to make one with the password you typed.", !1, !0) : i && !i.password_set ? j("<b>This account doesn’t have a password yet.</b> It was created with an email sign-in link, so no password you’ve used elsewhere will work here. Tap below to get a one-time link that lets you choose a password (or just use the Email link tab).", !0, !1) : j("That password didn’t match. Forgot it? Tap below and we’ll email you a link to set a new one.", !0, !1)
             }
             await x(a.data.session)
         } catch (e) {
@@ -735,7 +843,7 @@ function lhAuthRedirect() {
         var e = p(l("#pw-email").value || l("#login-email").value);
         if (v(""), !e) return v("Enter your email first");
         var t = await I(e);
-        if (t && !t.member) return v("That email isn’t on this household.");
+        if (t && !t.member) return v("That email isn’t on a List Hub household yet.");
         if (t && !t.account) return j("No account for this email yet — type the password you want and tap <b>Create my password</b>.", !1, !0);
         var n = await _().auth.resetPasswordForEmail(e, {
             redirectTo: lhAuthRedirect()
@@ -799,12 +907,12 @@ function lhAuthRedirect() {
             t = l("#pw-password").value || "";
         if (v(""), !e || t.length < 6) return v("Type your email and a password (6+ characters)");
         var n = await I(e);
-        if (n && !n.member) return v("That email isn’t on this household.");
+        if (n && !n.member) return v("That email isn’t on a List Hub household yet.");
         var a = await _().auth.signUp({
             email: e,
             password: t,
             options: {
-                emailRedirectTo: lhAuthRedirect(),
+                emailRedirectTo: inviteRedirect(),
                 data: {
                     has_password: !0
                 }
@@ -871,7 +979,7 @@ function lhAuthRedirect() {
 
     function cacheUpsert(name, resolved, source) {
         var row = {
-            household_id: a,
+            household_id: hhId(),
             name_key: p(name),
             category: resolved.category || resolved.legacy,
             source: source || resolved.source || "local",
@@ -1012,7 +1120,7 @@ function lhAuthRedirect() {
                 return e.slug === t
             });) t = n + "-" + i++;
         var r = await _().from("lh_stores").insert({
-            household_id: a,
+            household_id: hhId(),
             name: e,
             slug: t,
             kind: "other",
@@ -1072,7 +1180,7 @@ function lhAuthRedirect() {
                     return e.name_key === n
                 }),
                 r = {
-                    household_id: a,
+                    household_id: hhId(),
                     name_key: n,
                     preferred_store_id: t || i && i.preferred_store_id || null,
                     use_count: (i && i.use_count || 0) + 1,
@@ -1294,7 +1402,7 @@ function lhAuthRedirect() {
                                 r = l("#trip-start");
                             r && (r.disabled = !0);
                             var o = await _().from("lh_trips").insert({
-                                household_id: a,
+                                household_id: hhId(),
                                 store_id: t.id,
                                 store_name: t.name,
                                 status: "active",
@@ -1311,7 +1419,7 @@ function lhAuthRedirect() {
                                 var cat = catOf(n),
                                     row = {
                                     trip_id: s.id,
-                                    household_id: a,
+                                    household_id: hhId(),
                                     item_id: e,
                                     name: n.name,
                                     qty: n.qty,
@@ -1384,7 +1492,7 @@ function lhAuthRedirect() {
                                 var cat = catOf(t),
                                     row = {
                                     trip_id: e.id,
-                                    household_id: a,
+                                    household_id: hhId(),
                                     item_id: t.id,
                                     name: t.name,
                                     qty: t.qty,
@@ -2607,6 +2715,175 @@ function lhAuthRedirect() {
             input.select()
         }
 
+        // ---- Menu > Household: invites (any member) and admin household creation ----
+        var inviteFresh = null,
+            adminFresh = null;
+
+        function inviteRpcError(err) {
+            var msg = err && (err.message || err.details || String(err)) || "Request failed";
+            if (/could not find the function|schema cache|PGRST202/i.test(msg)) return "Invites aren’t on the server yet. Apply the households migration first.";
+            if (/already_member/i.test(msg)) return "That email already belongs to a household. List Hub supports one household per person for now.";
+            if (/too_many_invites/i.test(msg)) return "Too many pending invites. Cancel a few first.";
+            if (/not_allowed|42501/i.test(msg)) return "Only household members can do that.";
+            return msg
+        }
+
+        function inviteExpiry(iso) {
+            var ms = new Date(iso) - Date.now();
+            if (!(ms > 0)) return "expired";
+            var hrs = Math.round(ms / 36e5);
+            return hrs < 24 ? "expires in " + Math.max(1, hrs) + " h" : "expires in " + Math.round(hrs / 24) + " days"
+        }
+
+        function inviteMailto(fresh, householdName) {
+            var subject = "Join " + (householdName || "our household") + " on List Hub",
+                body = "Hi" + (fresh.display_name ? " " + fresh.display_name : "") + ",\n\nHere is your invite to " + (householdName || "our household") + " on List Hub:\n" + inviteLink(fresh.token) + "\n\nOpen it on your phone and sign in with this email address. The link works once and expires in 7 days.\n\n" + (w.displayName || "");
+            return "mailto:" + encodeURIComponent(fresh.email || "") + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body)
+        }
+
+        function freshInviteHtml(fresh, householdName, idPrefix) {
+            if (!fresh || !fresh.token) return "";
+            var who = fresh.email ? "for " + h(fresh.email) : "for anyone who opens it first";
+            return '<div class="agent-once invite-once"><strong>Invite link ' + who + ".</strong> It works once and expires in 7 days. Copy it now; it won’t be shown again." +
+                '<textarea class="agent-url invite-link" id="' + idPrefix + '-link" readonly rows="2">' + h(inviteLink(fresh.token)) + "</textarea>" +
+                '<div class="agent-copy-row"><button type="button" class="btn sm" id="' + idPrefix + '-copy">Copy link</button>' +
+                ("function" == typeof navigator.share ? '<button type="button" class="btn sm" id="' + idPrefix + '-share">Share</button>' : "") +
+                (fresh.email ? '<a class="btn sm" id="' + idPrefix + '-mail" href="' + h(inviteMailto(fresh, householdName)) + '">Email invite</a>' : "") + "</div></div>"
+        }
+
+        async function householdSectionHtml() {
+            var invites = [],
+                members = [],
+                isAdmin = !1,
+                err = "";
+            try {
+                var res = await Promise.all([_().rpc("lh_list_invites"), _().from("lh_members").select("display_name,role,created_at").order("created_at"), _().rpc("lh_is_admin")]);
+                res[0].error ? err = inviteRpcError(res[0].error) : invites = Array.isArray(res[0].data) ? res[0].data : [];
+                !res[1].error && res[1].data && (members = res[1].data);
+                isAdmin = !res[2].error && !0 === res[2].data
+            } catch (e) {
+                err = inviteRpcError(e)
+            }
+            var name = String(w.householdName || "").trim() || "Your household";
+            var open = invites.filter(function(i) {
+                return "pending" === i.status || "expired" === i.status
+            });
+            var rows = open.length ? open.map(function(i) {
+                var label = i.email ? h(i.email) : "Link invite (anyone with the link)";
+                var meta = ("pending" === i.status ? inviteExpiry(i.expires_at) : "Expired") + (i.created_by_name ? " · invited by " + h(i.created_by_name) : "") + " · " + h(agentWhen(i.created_at));
+                return '<div class="agent-row" data-invite-row="' + h(i.id) + '"><div class="agent-row-main"><strong>' + label + '</strong><p class="meta">' + meta + '</p></div><div class="invite-actions"><button type="button" class="btn ghost sm" data-invite-resend="' + h(i.id) + '">Resend</button>' + ("pending" === i.status ? '<button type="button" class="btn ghost sm danger" data-invite-cancel="' + h(i.id) + '">Cancel</button>' : "") + "</div></div>"
+            }).join("") : '<p class="hint">No pending invites.</p>';
+            var who = members.length ? members.map(function(m) {
+                return h(m.display_name) + ("owner" === m.role ? " (owner)" : "")
+            }).join(", ") : "";
+            return '<div class="agent-sec" id="household-sec"><h3>' + h(name) + "</h3>" + (who ? '<p class="hint" style="margin-top:0">Members: ' + who + "</p>" : "") +
+                '<p class="hint" style="margin-top:0">Invite someone to this household. Add their email so only they can join, or leave it blank for a one-time link. Invites expire after 7 days or one use.</p>' +
+                '<div class="agent-create invite-create"><input id="invite-email" type="email" inputmode="email" autocomplete="off" placeholder="Their email (optional)"><input id="invite-name" type="text" maxlength="80" placeholder="Name (optional)"><button type="button" class="btn primary" id="invite-create-btn">Invite</button></div>' +
+                freshInviteHtml(inviteFresh, name, "invite-fresh") + (err ? '<p class="error">' + h(err) + "</p>" : "") +
+                '<div class="group-title"><span>Pending invites</span></div>' + rows + "</div>" +
+                (isAdmin ? '<div class="agent-sec" id="admin-sec"><h3>Create a household (admin)</h3><p class="hint" style="margin-top:0">Starts with an empty List and Wishlist. You get an owner invite link to send them.</p>' +
+                    '<div class="admin-create"><input id="admin-hh-name" type="text" maxlength="80" placeholder="Household name"><input id="admin-owner-email" type="email" inputmode="email" autocomplete="off" placeholder="Owner email"><input id="admin-owner-name" type="text" maxlength="80" placeholder="Owner name (optional)"><button type="button" class="btn primary" id="admin-create-btn">Create household</button></div>' +
+                    (adminFresh ? '<p class="hint">Created <b>' + h(adminFresh.name) + "</b>.</p>" + freshInviteHtml(adminFresh.invite, adminFresh.name, "admin-fresh") : "") + "</div>" : "")
+        }
+
+        function bindFreshInvite(fresh, idPrefix, householdName) {
+            if (!fresh || !fresh.token) return;
+            var copyBtn = l("#" + idPrefix + "-copy"),
+                shareBtn = l("#" + idPrefix + "-share");
+            copyBtn && (copyBtn.onclick = function() {
+                copyTextToClipboard(inviteLink(fresh.token)).then(function(ok) {
+                    f(ok ? "Invite link copied." : "Couldn’t copy. Select the link and copy it.")
+                })
+            });
+            shareBtn && (shareBtn.onclick = function() {
+                shareOrCopyText("Join " + (householdName || "our household") + " on List Hub", inviteLink(fresh.token)).then(function(r) {
+                    "copied" === r ? f("Invite link copied.") : "failed" === r && f("Couldn’t share the link.")
+                })
+            })
+        }
+
+        function bindHouseholdSettings() {
+            var name = String(w.householdName || "").trim();
+            bindFreshInvite(inviteFresh, "invite-fresh", name);
+            adminFresh && bindFreshInvite(adminFresh.invite, "admin-fresh", adminFresh.name);
+            var createBtn = l("#invite-create-btn");
+            createBtn && (createBtn.onclick = async function() {
+                var email = (l("#invite-email").value || "").trim(),
+                    nm = (l("#invite-name").value || "").trim();
+                createBtn.disabled = !0;
+                try {
+                    var r = await _().rpc("lh_create_invite", {
+                        p_email: email || null,
+                        p_display_name: nm || null
+                    });
+                    if (r.error) return void f(inviteRpcError(r.error), 6e3);
+                    inviteFresh = r.data;
+                    openAgentSettings()
+                } catch (err) {
+                    f(inviteRpcError(err), 6e3)
+                } finally {
+                    createBtn.disabled = !1
+                }
+            });
+            u("#sheet [data-invite-cancel]").forEach(function(btn) {
+                btn.onclick = async function() {
+                    var id = btn.getAttribute("data-invite-cancel");
+                    btn.disabled = !0;
+                    try {
+                        var r = await _().rpc("lh_cancel_invite", {
+                            p_id: id
+                        });
+                        if (r.error) return void f(inviteRpcError(r.error), 6e3);
+                        inviteFresh && inviteFresh.id === id && (inviteFresh = null);
+                        f(r.data && r.data.ok ? "Invite cancelled." : "That invite was already used or cancelled.");
+                        openAgentSettings()
+                    } finally {
+                        btn.disabled = !1
+                    }
+                }
+            });
+            u("#sheet [data-invite-resend]").forEach(function(btn) {
+                btn.onclick = async function() {
+                    var id = btn.getAttribute("data-invite-resend");
+                    btn.disabled = !0;
+                    try {
+                        var r = await _().rpc("lh_resend_invite", {
+                            p_id: id
+                        });
+                        if (r.error) return void f(inviteRpcError(r.error), 6e3);
+                        if (!r.data || !r.data.ok) return void f(inviteProblem(r.data), 6e3);
+                        inviteFresh = r.data;
+                        f("New invite link ready. The old link no longer works.", 5e3);
+                        openAgentSettings()
+                    } finally {
+                        btn.disabled = !1
+                    }
+                }
+            });
+            var adminBtn = l("#admin-create-btn");
+            adminBtn && (adminBtn.onclick = async function() {
+                var hhName = (l("#admin-hh-name").value || "").trim(),
+                    ownerEmail = (l("#admin-owner-email").value || "").trim(),
+                    ownerName = (l("#admin-owner-name").value || "").trim();
+                if (!hhName || !ownerEmail) return void f("Household name and owner email are required.");
+                adminBtn.disabled = !0;
+                try {
+                    var r = await _().rpc("lh_admin_create_household", {
+                        p_name: hhName,
+                        p_owner_email: ownerEmail,
+                        p_owner_name: ownerName || null
+                    });
+                    if (r.error) return void f(inviteRpcError(r.error), 6e3);
+                    adminFresh = r.data;
+                    openAgentSettings()
+                } catch (err) {
+                    f(inviteRpcError(err), 6e3)
+                } finally {
+                    adminBtn.disabled = !1
+                }
+            })
+        }
+
         async function openAgentSettings() {
             var listed = [];
             var listErr = "";
@@ -2618,6 +2895,7 @@ function lhAuthRedirect() {
                 listErr = agentRpcErrorMessage(err)
             }
             var fresh = agentSettingsFresh;
+            var householdHtml = await householdSectionHtml();
             var needsPassword = l("#setpw-btn") && !l("#setpw-btn").classList.contains("hidden");
             var tokenRows = listed.length ? listed.map(function(tok) {
                 var label = tok.label || tok.name || "Agent";
@@ -2625,7 +2903,7 @@ function lhAuthRedirect() {
                 return '<div class="agent-row" data-token-row="' + h(tok.id) + '"><div class="agent-row-main"><button type="button" class="agent-label" data-label-edit="' + h(tok.id) + '" data-label="' + h(label) + '" title="Tap to rename the label shown on items this agent adds">' + h(titleCaseLabel(label)) + ' <span class="agent-label-pen" aria-hidden="true">✎</span></button><p class="meta">Shows on items it adds' + nameNote + " · created " + h(agentWhen(tok.created_at)) + (tok.created_by ? " by " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + "</p></div><button type=\"button\" class=\"btn ghost sm danger\" data-revoke=\"" + h(tok.id) + "\">Revoke</button></div>"
             }).join("") : '<p class="hint">No active tokens yet.</p>';
             U('<div class="modal-top"><strong>Menu</strong><button class="btn ghost sm" data-close>Close</button></div>' +
-                (needsPassword ? '<button type="button" class="btn wide" id="agent-setpw">🔑 Set a password</button>' : "") +
+                (needsPassword ? '<button type="button" class="btn wide" id="agent-setpw">🔑 Set a password</button>' : "") + householdHtml +
                 '<div class="agent-sec"><h3>AI agents</h3><p class="hint" style="margin-top:0">Create a named token so Grok, ChatGPT, Claude, or a custom agent can read this household’s list, add and remove items, and mark what it put in a cart. Items it adds show its label, and you can tap a label to rename it. The token is shown once, so copy it right away.</p>' +
                 '<div class="agent-create"><input id="agent-token-name" type="text" maxlength="80" placeholder="Name (Grok Bot, ChatGPT…)" enterkeyhint="done"><button type="button" class="btn primary" id="agent-create-btn">Create</button></div>' +
                 (fresh && fresh.token ? '<div class="agent-once" id="agent-fresh"><strong>Copy this token now.</strong> It will not be shown again.<code class="agent-token-value">' + h(fresh.token) + '</code><button type="button" class="btn sm" id="agent-copy-fresh">Copy token</button></div>' : "") +
@@ -2634,10 +2912,7 @@ function lhAuthRedirect() {
                 '</div><div class="agent-sec"><h3>API base URL</h3><textarea class="agent-url" id="agent-url" readonly rows="2">' + h(agentApiBaseUrl()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-url">Copy URL</button></div></div>' +
                 '<div class="agent-sec"><h3>Instructions for your AI</h3><textarea class="agent-instructions" id="agent-instructions" readonly rows="12">' + h(agentInstructionsSnippet()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-instructions">Copy instructions</button></div></div>');
             bindAgentSettings();
-            var nameField = l("#agent-token-name");
-            nameField && setTimeout(function() {
-                nameField.focus()
-            }, 40)
+            bindHouseholdSettings()
         }
 
         async function exportListForAi() {
@@ -2672,7 +2947,7 @@ function lhAuthRedirect() {
         },
         function e() {
             window.supabase && window.supabase.createClient ? async function() {
-                d("sbReady"), s.err ? (y("gate"), v("That sign-in link didn’t work (" + s.err + "). It may have expired or already been used — request a new one below.")) : s.hash || s.stored ? (y("splash"), l("#splash-msg").textContent = s.hash ? s.recovery ? "Opening password setup…" : "Signing you in…" : "Loading your list…", setTimeout(function() {
+                d("sbReady"), showInviteGate(), s.err ? (y("gate"), v("That sign-in link didn’t work (" + s.err + "). It may have expired or already been used — request a new one below.")) : s.hash || s.stored ? (y("splash"), l("#splash-msg").textContent = s.hash ? s.recovery ? "Opening password setup…" : "Signing you in…" : "Loading your list…", setTimeout(function() {
                     "splash" === w.view && (l("#splash-msg").textContent = "Still working… (slow connection?)", l("#splash-retry").classList.remove("hidden"))
                 }, 6e3)) : y("gate");
                 var e = _();

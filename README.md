@@ -10,7 +10,8 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 
 ## Features
 
-- Email magic link + password fallback (household allowlist only)
+- Email magic link + password fallback (household members and invited emails only)
+- **Households and invites**: each household has its own lists, stores and trips. Any member can invite from Menu > Household (7-day, one-use links); an admin creates new households
 - **List** (everyday / groceries) and **Wishlist**
 - Auto-categories in two levels (section → aisle), local rules + `lh-categorize`, store prefs
 - List grouped by section with subsection headers (Produce first, Frozen near the end)
@@ -21,6 +22,16 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 - **Find options** on Wishlist items (once / daily / weekly research jobs for Shopping Buddy)
 - Shopping Buddy can poll due jobs and log Finds — see [docs/finds.md](docs/finds.md)
 - **AI agents**: Menu > AI agents (named `lh_` tokens with editable labels) plus **Export for AI** on the List tab. Any assistant can read the list, add items (with quantity, store, note), remove items (logged in `list_hub.item_removals`), and mark cart progress. See [docs/AGENT_API.md](docs/AGENT_API.md)
+
+## Households and invites
+
+- **Create a household (admin only).** Menu > Household > *Create a household (admin)*, or in the Supabase SQL editor:
+  `select public.lh_admin_create_household('Household name', 'owner@example.com', 'Owner name');`
+  The new household gets an empty List and Wishlist (no items, no stores) and a one-use owner invite link. Send that link to the owner.
+- **Invite someone.** Any member: Menu > Household, enter their email (or leave it blank for a one-use link), tap **Invite**, then Copy, Share or Email the link. Links expire after 7 days or one use.
+- **Cancel / resend.** Pending invites are listed under the form. Resend makes a new link and cancels the old one.
+- **Accept.** The invitee opens the link, signs in with the invited email (magic link or password), and lands in that household.
+- One household per user for now (two removable unique indexes on `list_hub.members`). Members stay many-to-many so multi-household membership can come later.
 
 ## Sign in
 
