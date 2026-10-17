@@ -275,8 +275,8 @@ async function run(tag, viewport, touch) {
       record(`${tag}: invite landing names the household and who invited`, /Fleet Home/.test(banner) && /John/.test(banner) && /j\*\*\*@example\.test/.test(banner), `banner "${banner}"`);
       await typeInto(page, page.locator("#login-email"), JANE.email, touch);
       await tapOrClick(page, page.locator("#magic-btn"), touch);
-      const info = await page.locator("#gate-info:not(.hidden)").innerText({ timeout: 5000 }).catch(() => "");
-      record(`${tag}: invited email is allowed to request a sign-in link`, /Link sent/.test(info), `info "${info}" error "${await page.locator("#gate-error").innerText().catch(() => "")}"`);
+      const info = await page.locator("#magic-sent:not(.hidden), #gate-info:not(.hidden)").first().innerText({ timeout: 5000 }).catch(() => "");
+      record(`${tag}: invited email is allowed to request a sign-in link`, /Check your email for a sign-in link|Link sent/.test(info), `info "${info}" error "${await page.locator("#gate-error").innerText().catch(() => "")}"`);
       await page.screenshot({ path: join(OUT, `${tag}-03-accept-landing.png`) });
       } catch (err) { record(`${tag}: landing steps ran to the end`, false, String(err.message || err).split("\n")[0]); }
       await context.close();

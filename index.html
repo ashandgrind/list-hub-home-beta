@@ -55,7 +55,12 @@
           <input id="login-email" type="email" autocomplete="email" placeholder="you@example.com" enterkeyhint="go">
         </label>
         <button id="magic-btn" class="btn primary" type="button">Email me a sign-in link</button>
-        <p class="hint">Open the link on this phone. You’ll stay signed in afterwards.</p>
+        <p class="hint" id="magic-hint">Open the link on this phone. You’ll stay signed in afterwards.</p>
+        <div id="magic-sent" class="magic-sent hidden" role="status" aria-live="polite">
+          <strong>Check your email for a sign-in link.</strong>
+          <p id="magic-sent-detail"></p>
+          <button id="magic-again" class="btn ghost wide" type="button">Use a different email</button>
+        </div>
       </div>
       <div id="auth-password" class="auth-panel hidden">
         <label class="field">
