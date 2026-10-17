@@ -18,7 +18,8 @@ const repo = join(here, "..", "..");
 const SNAPSHOT_CUTOFF = "20261016000000"; // migrations newer than the snapshot get applied
 export const JWT_SECRET = "local-test-secret-local-test-secret-0123456789";
 export const IDS = {
-  household: "b0000000-0000-4000-8000-000000000001",
+  // Same id as the production household so the app's old hardcoded id lines up (fail-first checks).
+  household: "a0000000-0000-4000-8000-000000000001",
   otherHousehold: "b0000000-0000-4000-8000-000000000002",
   chris: "c0000000-0000-4000-8000-0000000000c1",
   ellen: "c0000000-0000-4000-8000-0000000000e1",
@@ -48,6 +49,10 @@ export const ANON_JWT = signJwt({ role: "anon", iss: "supabase" });
 export function memberJwt(who = "chris") {
   const email = who === "chris" ? "chris@example.test" : "ellen@example.test";
   return signJwt({ role: "authenticated", aud: "authenticated", sub: IDS[who], email });
+}
+// Any signed-in user (does not need to be a member).
+export function userJwt(sub, email) {
+  return signJwt({ role: "authenticated", aud: "authenticated", sub, email });
 }
 
 const pgEnv = {
