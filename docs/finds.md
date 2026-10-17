@@ -1,6 +1,6 @@
 # List Hub Finds (Shopping Buddy)
 
-A **Find** is a deal or listing someone logged against a list item (usually a Wishlist item). The household shopping AI assistant — **Shopping Buddy** — can insert these with the Supabase **service role**. Household members (Chris / Ellen) can also add and remove Finds from the app.
+A **Find** is a deal or listing someone logged against a list item (usually a Wishlist item). The household shopping AI assistant (**Shopping Buddy**) can insert these with the Supabase **service role**. Household members (Chris / Ellen) can also add and remove Finds from the app.
 
 Do not change Auth settings or the Site URL. All tables live in schema `list_hub`.
 
@@ -10,7 +10,7 @@ File: [`supabase/migrations/20260925183000_list_hub_wishlist_finds.sql`](../supa
 
 Until that SQL has been applied to project `dphkvcdohqsvefbdhsfx`, `list_hub.finds` / `list_hub.log_find` will not exist.
 
-Find-options / research jobs: [`supabase/migrations/20260925190000_list_hub_find_requests.sql`](../supabase/migrations/20260925190000_list_hub_find_requests.sql) — `list_hub.find_requests`, `list_hub.due_find_requests()`, `list_hub.complete_find_run()`.
+Find-options / research jobs: [`supabase/migrations/20260925190000_list_hub_find_requests.sql`](../supabase/migrations/20260925190000_list_hub_find_requests.sql): `list_hub.find_requests`, `list_hub.due_find_requests()`, `list_hub.complete_find_run()`.
 
 ## Table insert shape (`list_hub.finds`)
 
@@ -35,7 +35,7 @@ Example (service role, SQL):
 insert into list_hub.finds (item_id, title, price, source, url, condition, notes, found_by_kind)
 values (
   '6f3b413e-9f37-420f-a682-7ae142ca2317',  -- NVIDIA DGX Spark
-  'DGX Spark 128GB — Amazon reseller',
+  'DGX Spark 128GB (Amazon reseller)',
   3999.00,
   'Amazon',
   'https://www.amazon.com/...',
@@ -52,7 +52,7 @@ const { data, error } = await supabase
   .from('lh_finds')
   .insert({
     item_id: '6f3b413e-9f37-420f-a682-7ae142ca2317',
-    title: 'DGX Spark 128GB — Amazon reseller',
+    title: 'DGX Spark 128GB (Amazon reseller)',
     price: 3999,
     source: 'Amazon',
     url: 'https://www.amazon.com/...',
@@ -87,7 +87,7 @@ where l.household_id = 'a0000000-0000-4000-8000-000000000001'
 ```sql
 select list_hub.log_find(
   p_item_id    := '6f3b413e-9f37-420f-a682-7ae142ca2317',
-  p_title      := 'DGX Spark 128GB — Amazon reseller',
+  p_title      := 'DGX Spark 128GB (Amazon reseller)',
   p_price      := 3999.00,
   p_source     := 'Amazon',
   p_url        := 'https://www.amazon.com/...',
@@ -240,4 +240,4 @@ const { data, error } = await supabase.rpc('lh_complete_find_run', {
 });
 ```
 
-`list_hub` is not the default PostgREST schema — prefer the `lh_*` wrappers or SQL with the service role. Do not change Auth or the Site URL.
+`list_hub` is not the default PostgREST schema, so prefer the `lh_*` wrappers or SQL with the service role. Do not change Auth or the Site URL.
