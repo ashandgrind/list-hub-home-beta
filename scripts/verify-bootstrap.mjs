@@ -7,7 +7,7 @@ import { chromium, webkit } from "playwright";
 const dist = "dist";
 let index = readFileSync(join(dist, "index.html"), "utf8");
 if (/var C = window\.LHCats|C = window\.LHCats/.test(readFileSync("app.js", "utf8"))) {
-  throw new Error("app.js still aliases LHCats as C — that shadows lhBootstrap");
+  throw new Error("app.js still aliases LHCats as C, which shadows lhBootstrap");
 }
 if (!/async function lhBootstrap\(/.test(readFileSync("app.js", "utf8"))) {
   throw new Error("app.js is missing async function lhBootstrap");
@@ -238,10 +238,10 @@ async function run(browserType, name) {
   if (chrome.planHidden) fail("plan/export bar hidden on List tab");
   if (chrome.overflow) fail("horizontal overflow at 390px on list");
   if (!chrome.hasFormat) fail("formatOpenListMarkdown not exported");
-  if (!/# List Hub — List/.test(chrome.markdown)) fail("export markdown missing title");
+  if (!/# List Hub: List/.test(chrome.markdown)) fail("export markdown missing title");
   if (!/## Publix/.test(chrome.markdown) || !/## Any store/.test(chrome.markdown)) fail("export markdown not grouped by store: " + chrome.markdown);
   if (!/### Food/.test(chrome.markdown) || !/#### Produce/.test(chrome.markdown)) fail("export markdown not grouped by section: " + chrome.markdown);
-  if (!/- \[ \] Chicken — 2 lb/.test(chrome.markdown)) fail("export markdown missing qty line: " + chrome.markdown);
+  if (!/- \[ \] Chicken: 2 lb/.test(chrome.markdown)) fail("export markdown missing qty line: " + chrome.markdown);
 
   await page.evaluate(function () {
     window.__lhShared = null;
@@ -253,7 +253,7 @@ async function run(browserType, name) {
   await page.click("#export-ai-btn");
   await page.waitForFunction(function () { return !!window.__lhShared; }, null, { timeout: 4000 });
   const shared = await page.evaluate(function () { return window.__lhShared; });
-  if (!shared || !/List Hub — List/.test(shared.text || "")) fail("Export for AI did not share markdown");
+  if (!shared || !/List Hub: List/.test(shared.text || "")) fail("Export for AI did not share markdown");
 
   await page.click("#menu-btn");
   await page.waitForSelector("#agent-token-name", { timeout: 5000 });

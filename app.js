@@ -228,7 +228,7 @@ function lhAuthRedirect() {
         if ("cancelled" === e.status) return "Search stopped.";
         if ("done" === e.status) return "One-time search finished" + (t ? " " + t : "") + ".";
         if ("paused" === e.status) return "Paused · was searching " + freqPhrase(e.frequency) + (t ? " · last run " + t : "") + ".";
-        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued — Shopping Buddy will search once shortly." : "Queued — searching " + freqPhrase(e.frequency) + " starting shortly.";
+        if ("pending" === e.status && !e.last_run_at) return "once" === e.frequency ? "Queued. Shopping Buddy will search once shortly." : "Queued. Searching " + freqPhrase(e.frequency) + " starting shortly.";
         var i = ["Searching " + freqPhrase(e.frequency)];
         return t && i.push("last run " + t), n && "done" !== e.status && i.push("next run " + n), i.join(", ")
     }
@@ -335,7 +335,7 @@ function lhAuthRedirect() {
         function p(e, t) {
             return '<div class="detail-row"><span class="detail-k">' + h(e) + '</span><span class="detail-v">' + t + "</span></div>"
         }
-        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((catOf(e).emoji || "📦") + " " + catOf(e).label)) + p("Added", h(c || "—") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet — log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
+        U('<div class="modal-top"><strong>' + h(e.name) + '</strong><button class="btn ghost sm" data-close>Close</button></div><div class="detail-head">' + p("Category", h((catOf(e).emoji || "📦") + " " + catOf(e).label)) + p("Added", h(c || "Date unknown") + (o ? " · " + h(o) : " · adder unknown")) + (i ? p("Preferred store", h(i.name)) : "") + (e.preferred_source ? p("Preferred source", h(e.preferred_source)) : "") + "</div>" + (n ? '<div class="deal-card"><div class="deal-price">Best find · $' + h(money(n.price)) + '</div><div class="deal-sub">' + h(n.title) + (n.source ? " · " + h(n.source) : "") + "</div>" + (d ? '<div class="deal-cmp">' + h(d) + "</div>" : "") + (n.url ? '<a class="deal-link" href="' + h(n.url) + '" target="_blank" rel="noopener">Open listing</a>' : "") + "</div>" : null != e.target_price ? '<div class="deal-card muted">No priced finds yet. Target $' + h(money(e.target_price)) + ".</div>" : '<div class="deal-card muted">No finds yet. Log a deal below.</div>') + reqHtml + '<form id="wish-edit" class="wish-form"><label class="field"><span>Notes / description</span><textarea id="wish-notes" rows="3" placeholder="What you want, size, must-haves…">' + h(e.notes || "") + '</textarea></label><label class="field"><span>Target price (USD)</span><input id="wish-price" inputmode="decimal" enterkeyhint="done" placeholder="e.g. 400" value="' + h(null != e.target_price ? String(e.target_price) : "") + '"></label><label class="field"><span>Preferred store</span><select id="wish-store" class="sel">' + ee(e.preferred_store_id) + '</select></label><label class="field"><span>Preferred source / seller</span><input id="wish-source" placeholder="Amazon, eBay, FB Marketplace…" value="' + h(e.preferred_source || "") + '"></label><label class="field"><span>Product links <small>(one per line, optional “Label URL”)</small></span><textarea id="wish-links" rows="3" placeholder="https://…">' + h(formatLinks(e.product_links)) + "</textarea></label>" + (links.length ? '<div class="link-list">' + links.map(function(e) {
             return '<a href="' + h(e.url) + '" target="_blank" rel="noopener">' + h(e.label || e.url) + "</a>"
         }).join("") + "</div>" : "") + '<button class="btn primary" type="submit" id="wish-save">Save details</button></form><div class="finds-block"><div class="group-title"><span>Finds · ' + t.length + "</span></div>" + (t.length ? t.map(function(e) {
             var t = e.found_by_kind === "assistant" || /shopping\s*buddy/i.test(e.found_by || "") ? "Shopping Buddy" : e.found_by && !/^unknown$/i.test(e.found_by) ? e.found_by : "",
@@ -347,7 +347,7 @@ function lhAuthRedirect() {
                     minute: "2-digit"
                 }) : "";
             return '<article class="find-card" data-find="' + e.id + '"><div class="find-top"><strong>' + h(e.title) + "</strong>" + (null != e.price ? '<span class="find-price">$' + h(money(e.price)) + "</span>" : "") + '</div><div class="item-meta">' + (e.source ? '<span class="badge">' + h(e.source) + "</span>" : "") + (e.condition ? '<span class="badge">' + h(e.condition) + "</span>" : "") + (t ? '<span class="badge who">' + h(t) + "</span>" : "") + (a ? '<span class="badge">' + h(a) + "</span>" : "") + "</div>" + (e.notes ? '<p class="find-notes">' + h(e.notes) + "</p>" : "") + '<div class="find-actions">' + (e.url ? '<a class="btn sm" href="' + h(e.url) + '" target="_blank" rel="noopener">Open</a>' : "") + '<button type="button" class="btn ghost sm" data-delfind="' + e.id + '">Remove</button></div></article>'
-        }).join("") : '<p class="hint">Nothing logged yet. Add a listing you or Shopping Buddy found.</p>') + '<form id="find-add" class="wish-form"><div class="group-title"><span>Log a find</span></div><label class="field"><span>Title</span><input id="find-title" required placeholder="Listing title" enterkeyhint="next"></label><div class="find-grid"><label class="field"><span>Price</span><input id="find-price" inputmode="decimal" placeholder="0.00"></label><label class="field"><span>Condition</span><select id="find-cond" class="sel"><option value="">—</option><option value="new">New</option><option value="used">Used</option><option value="refurb">Refurb</option></select></label></div><label class="field"><span>Source / seller</span><input id="find-source" placeholder="Amazon, eBay, FB Marketplace, Best Buy…"></label><label class="field"><span>URL</span><input id="find-url" inputmode="url" autocomplete="off" placeholder="https://"></label><label class="field"><span>Notes</span><input id="find-notes" placeholder="Optional"></label><button class="btn accent" type="submit">Add find</button></form></div>');
+        }).join("") : '<p class="hint">Nothing logged yet. Add a listing you or Shopping Buddy found.</p>') + '<form id="find-add" class="wish-form"><div class="group-title"><span>Log a find</span></div><label class="field"><span>Title</span><input id="find-title" required placeholder="Listing title" enterkeyhint="next"></label><div class="find-grid"><label class="field"><span>Price</span><input id="find-price" inputmode="decimal" placeholder="0.00"></label><label class="field"><span>Condition</span><select id="find-cond" class="sel"><option value="">Not set</option><option value="new">New</option><option value="used">Used</option><option value="refurb">Refurb</option></select></label></div><label class="field"><span>Source / seller</span><input id="find-source" placeholder="Amazon, eBay, FB Marketplace, Best Buy…"></label><label class="field"><span>URL</span><input id="find-url" inputmode="url" autocomplete="off" placeholder="https://"></label><label class="field"><span>Notes</span><input id="find-notes" placeholder="Optional"></label><button class="btn accent" type="submit">Add find</button></form></div>');
         var m = l("#wish-store");
         m && m.addEventListener("change", async function() {
             if ("__add__" === this.value) {
@@ -739,7 +739,7 @@ function lhAuthRedirect() {
                 joined && (joined.ok && !joined.already ? f("Welcome to " + (joined.household_name || "your household") + "!", 5e3) : joined.ok || "network" === joined.error || f(inviteProblem(joined), 7e3));
                 E(a), L(t, a), w.loadedAt = Date.now(), a.member.user_id || _().rpc("lh_claim_member").then(function() {}, function() {}), await hydrateExtras(), y("app"), se(), g(""), d("signedIn"), P(), H()
             } catch (e) {
-                d("bootstrapErr"), n ? g("Offline — showing saved list (" + (e.message || "network") + ")", !0) : (y("gate"), v("Signed in, but couldn’t load your list: " + (e.message || "network error") + ". Try again."))
+                d("bootstrapErr"), n ? g("Offline. Showing saved list (" + (e.message || "network") + ")", !0) : (y("gate"), v("Signed in, but couldn’t load your list: " + (e.message || "network error") + ". Try again."))
             }
         }();
         try {
@@ -772,7 +772,7 @@ function lhAuthRedirect() {
     }
 
     function A(e) {
-        return /security purposes|rate limit|429|seconds/i.test(e || "") ? "An email was just sent — please wait about a minute before requesting another, and check your inbox (and spam)." : e
+        return /security purposes|rate limit|429|seconds/i.test(e || "") ? "An email was just sent. Please wait about a minute before requesting another, and check your inbox (and spam)." : e
     }
     async function M() {
         var e = p(l("#login-email").value);
@@ -790,7 +790,7 @@ function lhAuthRedirect() {
                 }
             });
             if (a.error) return v(A(a.error.message));
-            b("Link sent to " + e + ". Open it on this phone — it signs you in right away.")
+            b("Link sent to " + e + ". Open it on this phone. It signs you in right away.")
         } catch (e) {
             v(e.message || "Could not send link")
         } finally {
@@ -844,12 +844,12 @@ function lhAuthRedirect() {
         if (v(""), !e) return v("Enter your email first");
         var t = await I(e);
         if (t && !t.member) return v("That email isn’t on a List Hub household yet.");
-        if (t && !t.account) return j("No account for this email yet — type the password you want and tap <b>Create my password</b>.", !1, !0);
+        if (t && !t.account) return j("No account for this email yet. Type the password you want and tap <b>Create my password</b>.", !1, !0);
         var n = await _().auth.resetPasswordForEmail(e, {
             redirectTo: lhAuthRedirect()
         });
         if (n.error) return v(A(n.error.message));
-        j("Sent! Open the email on this phone and tap the link — you’ll be signed in and asked to choose your password.", !1, !1)
+        j("Sent! Open the email on this phone and tap the link, and you’ll be signed in and asked to choose your password.", !1, !1)
     }
 
     function P() {
@@ -883,7 +883,7 @@ function lhAuthRedirect() {
                 }
             });
             if (this.disabled = !1, i.error) return a(i.error.message);
-            i.data && i.data.user && w.session && (w.session.user = i.data.user), N(), P(), f("Password saved — you can use the Password tab from now on.", 5e3)
+            i.data && i.data.user && w.session && (w.session.user = i.data.user), N(), P(), f("Password saved. You can use the Password tab from now on.", 5e3)
         }
     }
 
@@ -918,7 +918,7 @@ function lhAuthRedirect() {
                 }
             }
         });
-        return a.error ? v(A(a.error.message)) : a.data.session ? x(a.data.session) : void j("Account created — check your email to confirm, then sign in.", !1, !1)
+        return a.error ? v(A(a.error.message)) : a.data.session ? x(a.data.session) : void j("Account created. Check your email to confirm, then sign in.", !1, !1)
     }, l("#pw-forgot").onclick = function(e) {
         e.preventDefault(), R()
     }, l("#pw-email").addEventListener("change", async function() {
@@ -926,7 +926,7 @@ function lhAuthRedirect() {
         if (e) {
             var t = ++q,
                 n = await I(e);
-            t === q && (n && n.member && n.account && !n.password_set ? j("Heads up: this account has no password yet (it was made with an email link). Use the Email link tab, or tap below to set a password.", !0, !1) : n && n.member && !n.account ? j("No account yet for this email — type a password and tap <b>Create my password</b>.", !1, !0) : j(""))
+            t === q && (n && n.member && n.account && !n.password_set ? j("Heads up: this account has no password yet (it was made with an email link). Use the Email link tab, or tap below to set a password.", !0, !1) : n && n.member && !n.account ? j("No account yet for this email. Type a password and tap <b>Create my password</b>.", !1, !0) : j(""))
         }
     }), l("#signout-btn").onclick = async function() {
         ye();
@@ -1131,7 +1131,7 @@ function lhAuthRedirect() {
     }
     async function ne(e) {
         var t = X(w.kind);
-        if (!t) return g("List not found — refresh", !0);
+        if (!t) return g("List not found. Refresh the page.", !0);
         var n = [];
         g("Adding" + (e.length > 1 ? " " + e.length : "") + "…");
         for (var a = 0; a < e.length; a++) {
@@ -1304,7 +1304,7 @@ function lhAuthRedirect() {
                         n && n.stopPropagation && n.stopPropagation();
                         var e = t,
                             cur = catOf(e);
-                        U('<div class="modal-top"><strong>Category for “' + h(e.name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div>' + LHCats.pickerHtml(cur) + '<p class="hint">Optional — we’ll remember this for next time. You never have to set it.</p>'), u("#sheet [data-section]").forEach(function(t) {
+                        U('<div class="modal-top"><strong>Category for “' + h(e.name) + '”</strong><button class="btn ghost sm" data-close>Close</button></div>' + LHCats.pickerHtml(cur) + '<p class="hint">Optional. We’ll remember this for next time. You never have to set it.</p>'), u("#sheet [data-section]").forEach(function(t) {
                             t.onclick = async function() {
                                 var resolved = LHCats.fromStored(t.dataset.section, t.dataset.sub || "", e.name, {
                                     trustSection: !0,
@@ -1320,7 +1320,7 @@ function lhAuthRedirect() {
                 });
                 var m = l("#clear-done");
                 m && (m.onclick = ce)
-            } else d.innerHTML = '<div class="empty">' + ("wish" === w.kind ? "Wishlist is empty. Add things you’d like someday." : "Nothing on the List. Add what you need — we’ll sort it.") + "</div>"
+            } else d.innerHTML = '<div class="empty">' + ("wish" === w.kind ? "Wishlist is empty. Add things you’d like someday." : "Nothing on the List. Add what you need, and we’ll sort it.") + "</div>"
         }
     }
     async function ce() {
@@ -1370,7 +1370,7 @@ function lhAuthRedirect() {
                             return '<div class="pick" data-pick="' + e.id + '"><span class="check-btn' + (t.picked[e.id] ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name">' + h(e.name) + '</div><div class="item-meta">' + (e.qty ? '<span class="badge">' + h(e.qty) + "</span>" : "") + (n ? '<span class="badge">' + h(n.name) + "</span>" : "") + "</div></div></div>"
                         }).join("")
                     }).join("")
-                }).join("") : '<div class="empty">The List is empty — add items first.</div>') + '<div class="sheet-foot"><button class="btn primary" id="trip-start"' + (s && c ? "" : " disabled") + ">" + (c ? "Start " + h(c.name) + " trip · " + s + " item" + (1 === s ? "" : "s") : "Pick a store") + "</button></div>"), u("#sheet [data-store]").forEach(function(a) {
+                }).join("") : '<div class="empty">The List is empty. Add items first.</div>') + '<div class="sheet-foot"><button class="btn primary" id="trip-start"' + (s && c ? "" : " disabled") + ">" + (c ? "Start " + h(c.name) + " trip · " + s + " item" + (1 === s ? "" : "s") : "Pick a store") + "</button></div>"), u("#sheet [data-store]").forEach(function(a) {
                     a.onclick = async function() {
                         if ("__new__" === a.dataset.store) {
                             var i = await te(prompt("Store name?"));
@@ -1456,7 +1456,7 @@ function lhAuthRedirect() {
                         return '<div class="pick" data-ti="' + e.id + '"><span class="check-btn' + (e.checked ? " on" : "") + '">✓</span><div class="item-body"><div class="item-name" style="' + (e.checked ? "text-decoration:line-through;color:var(--muted)" : "") + '">' + h(e.name) + "</div>" + (e.qty ? '<div class="item-meta"><span class="badge">' + h(e.qty) + "</span></div>" : "") + "</div></div>"
                     }).join("")
                 }).join("")
-            }).join("") + (n ? "" : '<div class="empty">No items on this trip yet.</div>') + '<div class="sheet-foot"><button class="btn" id="trip-more">+ Add more from the List</button><button class="btn soon" id="trip-export" disabled title="Coming soon">📲 Send to ' + h(t.store_name) + ("amazon" === c ? "" : " / Amazon") + ' app — coming soon</button><button class="btn primary" id="trip-finish">Finish trip' + (o ? " · " + o + " bought" : "") + '</button><button class="btn ghost sm" id="trip-cancel" style="justify-self:center">Cancel trip</button></div>'), u("#sheet [data-ti]").forEach(function(n) {
+            }).join("") + (n ? "" : '<div class="empty">No items on this trip yet.</div>') + '<div class="sheet-foot"><button class="btn" id="trip-more">+ Add more from the List</button><button class="btn soon" id="trip-export" disabled title="Coming soon">📲 Send to ' + h(t.store_name) + ("amazon" === c ? "" : " / Amazon") + ' app (coming soon)</button><button class="btn primary" id="trip-finish">Finish trip' + (o ? " · " + o + " bought" : "") + '</button><button class="btn ghost sm" id="trip-cancel" style="justify-self:center">Cancel trip</button></div>'), u("#sheet [data-ti]").forEach(function(n) {
                 n.onclick = async function() {
                     var a = t.items.find(function(e) {
                         return e.id === n.dataset.ti
@@ -1530,7 +1530,7 @@ function lhAuthRedirect() {
                             return i.indexOf(e.id) < 0
                         }), w.trips = w.trips.filter(function(t) {
                             return t !== e
-                        }), N(), se(), f("Trip done — " + (a.data && null != a.data.bought ? a.data.bought : t) + " bought" + (n ? ", " + n + " still on the List" : "") + ".", 5e3), window.__lh.lastTrip = a.data
+                        }), N(), se(), f("Trip done: " + (a.data && null != a.data.bought ? a.data.bought : t) + " bought" + (n ? ", " + n + " still on the List" : "") + ".", 5e3), window.__lh.lastTrip = a.data
                     }
                 }(t)
             }, l("#trip-cancel").onclick = async function() {
@@ -1665,7 +1665,7 @@ function lhAuthRedirect() {
         if (!r) return;
         var top = '<div class="modal-top"><strong>🍳 Add from a recipe</strong><button class="btn ghost sm" type="button" id="rc-close">Close</button></div>';
         if ("input" === r.step) {
-            U(top + '<textarea id="rc-in" class="rc-input" rows="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste a recipe link (website, YouTube, X, TikTok…) — or paste the recipe text">' + h(r.input) + "</textarea>" + (r.err ? '<p class="error" id="rc-err">' + h(r.err) + "</p>" : "") + '<p class="hint">You’ll see the ingredients first — nothing is added until you tap Add.</p><div class="sheet-foot"><button class="btn primary" type="button" id="rc-go">Get ingredients</button></div>');
+            U(top + '<textarea id="rc-in" class="rc-input" rows="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste a recipe link (website, YouTube, X, TikTok…) or paste the recipe text">' + h(r.input) + "</textarea>" + (r.err ? '<p class="error" id="rc-err">' + h(r.err) + "</p>" : "") + '<p class="hint">You’ll see the ingredients first. Nothing is added until you tap Add.</p><div class="sheet-foot"><button class="btn primary" type="button" id="rc-go">Get ingredients</button></div>');
             var ta = l("#rc-in");
             l("#rc-go").onclick = function() {
                 r.input = ta.value.trim();
@@ -1722,7 +1722,7 @@ function lhAuthRedirect() {
         r.step = "loading", r.err = "", rcRender();
         var slow = setTimeout(function() {
                 var m = l("#rc-msg");
-                m && rcState === r && my === r.seq && (m.textContent = "Still reading — checking the page / video description…")
+                m && rcState === r && my === r.seq && (m.textContent = "Still reading. Checking the page / video description…")
             }, 9e3),
             out = null,
             fail = "";
@@ -1755,7 +1755,7 @@ function lhAuthRedirect() {
             if (!res.ok && !(out && out.message)) throw new Error("Server error " + res.status);
             window.__lh.lastRecipe = out
         } catch (e) {
-            fail = e && "AbortError" === e.name ? "That took too long — try again, or paste the recipe text." : String(e && e.message || e)
+            fail = e && "AbortError" === e.name ? "That took too long. Try again, or paste the recipe text." : String(e && e.message || e)
         }
         clearTimeout(slow);
         if (rcState !== r || my !== r.seq || "loading" !== r.step) return;
@@ -1863,7 +1863,7 @@ function lhAuthRedirect() {
             n.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js", n.async = !0, n.crossOrigin = "anonymous", n.onload = function() {
                 window.ZXing && window.ZXing.MultiFormatReader ? e(window.ZXing) : t(new Error("scanner library missing"))
             }, n.onerror = function() {
-                ue = null, t(new Error("Barcode scanner failed to load — check your connection"))
+                ue = null, t(new Error("Barcode scanner failed to load. Check your connection."))
             }, document.head.appendChild(n)
         }))
     }
@@ -2008,7 +2008,7 @@ function lhAuthRedirect() {
                 }, o
             })
         }(e).then(function(e) {
-            if (!e) return g(""), void f("Couldn’t find a barcode in that photo — get close so the barcode fills the frame, hold steady, avoid glare. (decode failed)", 8e3);
+            if (!e) return g(""), void f("Couldn’t find a barcode in that photo. Get close so the barcode fills the frame, hold steady, avoid glare. (decode failed)", 8e3);
             window.__lh.lastScan = {
                 rawValue: e.text,
                 format: e.format,
@@ -2018,7 +2018,7 @@ function lhAuthRedirect() {
             g(""), f(e && e.message || "Could not read that photo", 6e3)
         })
     }), l("#barcode-btn").onclick = function() {
-        if (ye(), !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return f("Camera not available — pick a photo"), void l("#barcode-file").click();
+        if (ye(), !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return f("Camera not available. Pick a photo."), void l("#barcode-file").click();
         var e = l("#scan-video");
         e.muted = !0, e.playsInline = !0;
         var t = me = {
@@ -2072,7 +2072,7 @@ function lhAuthRedirect() {
         }).catch(function(e) {
             ye();
             var t = e && e.name;
-            f("NotAllowedError" === t ? "Camera blocked — allow camera for this site (Settings › Chrome/Safari › Camera), or use a photo." : "Camera unavailable (" + (t || "error") + ") — use a photo.", 7e3)
+            f("NotAllowedError" === t ? "Camera blocked. Allow camera for this site (Settings › Chrome/Safari › Camera), or use a photo." : "Camera unavailable (" + (t || "error") + "). Use a photo.", 7e3)
         })
     }, l("#scan-close").onclick = ye, l("#scan-file-btn").onclick = function() {
         ye(), l("#barcode-file").click()
@@ -2177,7 +2177,7 @@ function lhAuthRedirect() {
             code: e,
             at: Date.now(),
             hint: null
-        }, g("Scanned " + e + " — looking it up…"), Le(e).then(function(n) {
+        }, g("Scanned " + e + ": looking it up…"), Le(e).then(function(n) {
             if (n && n.found) {
                 var a = [n.name, n.brand, n.quantity].filter(Boolean).join(" · ").trim() || "Product " + e,
                     i = n.source || "",
@@ -2187,13 +2187,13 @@ function lhAuthRedirect() {
                     section: r.section,
                     subsection: r.subsection,
                     text: [n.name, n.brand, n.categories].filter(Boolean).join(" | ").slice(0, 160)
-                }, t.placeholder = "Add item…", t.value = a, ie(a), g("Barcode matched (" + i + ") — review & tap Add"), f("Found: " + a, 5e3)
+                }, t.placeholder = "Add item…", t.value = a, ie(a), g("Barcode matched (" + i + "). Review & tap Add."), f("Found: " + a, 5e3)
             } else {
                 t.value = "", t.placeholder = "Name for " + e + "…";
                 try {
                     t.focus()
                 } catch (e) {}
-                g("Scanned " + e + " — not found in product databases"), f("Scanned " + e + " — not in product databases. Name it:", 8e3)
+                g("Scanned " + e + ": not found in product databases"), f("Scanned " + e + ": not in product databases. Name it:", 8e3)
             }
         })
     }
@@ -2219,7 +2219,7 @@ function lhAuthRedirect() {
 
     function xe(e) {
         var t = l("#voice-confirm");
-        if (!e.length) return t.classList.add("hidden"), t.innerHTML = "", f("Couldn’t pick out any items — try again");
+        if (!e.length) return t.classList.add("hidden"), t.innerHTML = "", f("Couldn’t pick out any items. Try again.");
 
         function n() {
             t.classList.add("hidden"), t.innerHTML = ""
@@ -2241,14 +2241,14 @@ function lhAuthRedirect() {
         try {
             l("#item-name").focus()
         } catch (e) {}
-        f(e || "Voice add isn’t available in this browser. Tap the 🎤 on your keyboard to dictate — say items separated by “and”.", 8e3)
+        f(e || "Voice add isn’t available in this browser. Tap the 🎤 on your keyboard to dictate, and say items separated by “and”.", 8e3)
     }
     var Me = {
             "not-allowed": "Mic/speech access is blocked. iPhone: Settings › Safari › Microphone → Allow, and Settings › Privacy & Security › Speech Recognition → allow Safari. Or use the keyboard 🎤.",
             "service-not-allowed": "iPhone blocked the speech service. Turn on Settings › General › Keyboard › Enable Dictation, and open this site in Safari itself. For now: tap the item box and use the keyboard 🎤.",
-            "no-speech": "Didn’t hear anything — tap 🎤 and start speaking right away.",
+            "no-speech": "Didn’t hear anything. Tap 🎤 and start speaking right away.",
             "audio-capture": "No microphone available (another app may be using it).",
-            network: "Voice needs an internet connection — check signal and try again."
+            network: "Voice needs an internet connection. Check signal and try again."
         },
         je = null;
     setTimeout(function() {
@@ -2277,7 +2277,7 @@ function lhAuthRedirect() {
     }
 
     function Pe() {
-        return Ie ? !1 === je ? Ae("Voice add isn’t set up for this browser yet. The keyboard is open — tap its 🎤 to dictate.") : qe ? Re() : (qe = {
+        return Ie ? !1 === je ? Ae("Voice add isn’t set up for this browser yet. The keyboard is open. Tap its 🎤 to dictate.") : qe ? Re() : (qe = {
             starting: !0
         }, void navigator.mediaDevices.getUserMedia({
             audio: {
@@ -2311,7 +2311,7 @@ function lhAuthRedirect() {
                 He(a)
             }, t.start(1e3), De(!0);
             var i = function() {
-                qe === a && g("● Recording… " + Math.max(0, 15 - Math.floor((Date.now() - a.t0) / 1e3)) + "s — tap ⏹ when done")
+                qe === a && g("● Recording… " + Math.max(0, 15 - Math.floor((Date.now() - a.t0) / 1e3)) + "s. Tap ⏹ when done.")
             };
             i(), a.iv = setInterval(i, 500), a.max = setTimeout(Re, 15e3)
         }).catch(function(e) {
@@ -2336,7 +2336,7 @@ function lhAuthRedirect() {
                 bytes: i.size,
                 type: a,
                 secs: r
-            }, r < .7 || i.size < 800) return g(""), f("That was too short — tap 🎤, say your items, then tap ⏹.");
+            }, r < .7 || i.size < 800) return g(""), f("That was too short. Tap 🎤, say your items, then tap ⏹.");
         g("Transcribing…");
         try {
             var o = await S();
@@ -2358,13 +2358,13 @@ function lhAuthRedirect() {
                     j: c
                 }, 200 === s.status) {
                 var d = (c.text || "").trim();
-                return window.__lh.lastTranscript = d, d ? (g("Heard: " + d), xe(Ce(d))) : (g(""), f("Didn’t catch any words — try again closer to the mic."))
+                return window.__lh.lastTranscript = d, d ? (g("Heard: " + d), xe(Ce(d))) : (g(""), f("Didn’t catch any words. Try again closer to the mic."))
             }
-            if (503 === s.status) return je = !1, g(""), Ae("Voice transcription isn’t set up yet — use the keyboard 🎤 for now.");
+            if (503 === s.status) return je = !1, g(""), Ae("Voice transcription isn’t set up yet. Use the keyboard 🎤 for now.");
             if (401 === s.status || 403 === s.status) return g(""), f(403 === s.status ? "This account isn’t on the household list." : "Sign in again to use voice add.");
-            g("Voice error", !0), f("Transcription failed (" + (c.error || s.status) + ") — try again or use the keyboard 🎤.")
+            g("Voice error", !0), f("Transcription failed (" + (c.error || s.status) + "). Try again or use the keyboard 🎤.")
         } catch (e) {
-            g(""), f(e.message || "Transcription failed — check connection.")
+            g(""), f(e.message || "Transcription failed. Check your connection.")
         }
     }
     var ze = null;
@@ -2400,12 +2400,12 @@ function lhAuthRedirect() {
                     a = t.trim(), (i = (t + n).replace(/\s+/g, " ").trim()) && g("Heard: " + i), u(a && !n.trim() ? 700 : 1800)
                 }, e.onerror = function(e) {
                     var t = e && e.error || "unknown";
-                    window.__lh.lastVoiceError = t, "aborted" === t || "no-speech" === t && i || (r = !0, g("Voice: " + t, !0), "not-allowed" !== t && "service-not-allowed" !== t || localStorage.setItem("lh-sr-blocked", String(Date.now())), "service-not-allowed" === t && Ie && !1 !== je ? (f("Speech service is off — recording instead. Speak now, tap ⏹ when done.", 5e3), setTimeout(Pe, 50)) : "not-allowed" === t || "service-not-allowed" === t ? Ae(Me[t]) : f(Me[t] || "Voice error: " + t, 8e3))
+                    window.__lh.lastVoiceError = t, "aborted" === t || "no-speech" === t && i || (r = !0, g("Voice: " + t, !0), "not-allowed" !== t && "service-not-allowed" !== t || localStorage.setItem("lh-sr-blocked", String(Date.now())), "service-not-allowed" === t && Ie && !1 !== je ? (f("Speech service is off, so it’s recording instead. Speak now, tap ⏹ when done.", 5e3), setTimeout(Pe, 50)) : "not-allowed" === t || "service-not-allowed" === t ? Ae(Me[t]) : f(Me[t] || "Voice error: " + t, 8e3))
                 }, e.onend = function() {
                     if (!c) {
                         c = !0, clearTimeout(o), clearTimeout(s), ze = null, d.classList.remove("listening");
                         var e = i || a;
-                        window.__lh.lastTranscript = e, e ? (localStorage.removeItem("lh-sr-blocked"), g("Heard: " + e), xe(Ce(e))) : r || (g(""), f("Didn’t catch that — tap 🎤 and try again."))
+                        window.__lh.lastTranscript = e, e ? (localStorage.removeItem("lh-sr-blocked"), g("Heard: " + e), xe(Ce(e))) : r || (g(""), f("Didn’t catch that. Tap 🎤 and try again."))
                     }
                 }, s = setTimeout(function() {
                     try {
@@ -2521,7 +2521,7 @@ function lhAuthRedirect() {
                 return left.localeCompare(right)
             });
             var title = "wish" === (listKind || "needs") ? "Wishlist" : "List",
-                lines = ["# List Hub — " + title, ""];
+                lines = ["# List Hub: " + title, ""];
             if (!openItems.length) {
                 lines.push("_Nothing open._");
                 return lines.join("\n") + "\n"
@@ -2534,7 +2534,7 @@ function lhAuthRedirect() {
                         if (sub.name) lines.push("#### " + sub.name, "");
                         sub.items.forEach(function(item) {
                             var extra = [item.qty, item.notes].filter(Boolean).join(" · ");
-                            lines.push("- [ ] " + item.name + (extra ? " — " + extra : ""))
+                            lines.push("- [ ] " + item.name + (extra ? ": " + extra : ""))
                         });
                         lines.push("")
                     })
@@ -2624,7 +2624,7 @@ function lhAuthRedirect() {
             l("#agent-copy-fresh") && (l("#agent-copy-fresh").onclick = function() {
                 if (!agentSettingsFresh || !agentSettingsFresh.token) return;
                 copyTextToClipboard(agentSettingsFresh.token).then(function(ok) {
-                    f(ok ? "Token copied. It won’t be shown again after you leave this screen." : "Couldn’t copy — select the token and copy it.")
+                    f(ok ? "Token copied. It won’t be shown again after you leave this screen." : "Couldn’t copy. Select the token and copy it.")
                 })
             });
             l("#agent-copy-url") && (l("#agent-copy-url").onclick = function() {
@@ -2634,7 +2634,7 @@ function lhAuthRedirect() {
             });
             l("#agent-copy-instructions") && (l("#agent-copy-instructions").onclick = function() {
                 copyTextToClipboard(agentInstructionsSnippet()).then(function(ok) {
-                    f(ok ? "Instructions copied — paste them into your AI." : "Couldn’t copy the instructions.")
+                    f(ok ? "Instructions copied. Paste them into your AI." : "Couldn’t copy the instructions.")
                 })
             });
             l("#agent-setpw") && (l("#agent-setpw").onclick = function() {
@@ -2918,7 +2918,7 @@ function lhAuthRedirect() {
         async function exportListForAi() {
             var markdown = formatOpenListMarkdown("needs");
             if (!$("needs").length) return f("Nothing on the List to export.");
-            var result = await shareOrCopyText("List Hub — List", markdown);
+            var result = await shareOrCopyText("List Hub: List", markdown);
             if ("shared" === result) f("List shared.");
             else if ("copied" === result) f("List copied as markdown.");
             else if ("cancelled" !== result) f("Couldn’t share or copy the list.", 5e3)
@@ -2947,16 +2947,16 @@ function lhAuthRedirect() {
         },
         function e() {
             window.supabase && window.supabase.createClient ? async function() {
-                d("sbReady"), showInviteGate(), s.err ? (y("gate"), v("That sign-in link didn’t work (" + s.err + "). It may have expired or already been used — request a new one below.")) : s.hash || s.stored ? (y("splash"), l("#splash-msg").textContent = s.hash ? s.recovery ? "Opening password setup…" : "Signing you in…" : "Loading your list…", setTimeout(function() {
+                d("sbReady"), showInviteGate(), s.err ? (y("gate"), v("That sign-in link didn’t work (" + s.err + "). It may have expired or already been used. Request a new one below.")) : s.hash || s.stored ? (y("splash"), l("#splash-msg").textContent = s.hash ? s.recovery ? "Opening password setup…" : "Signing you in…" : "Loading your list…", setTimeout(function() {
                     "splash" === w.view && (l("#splash-msg").textContent = "Still working… (slow connection?)", l("#splash-retry").classList.remove("hidden"))
                 }, 6e3)) : y("gate");
                 var e = _();
                 try {
                     var t = await e.auth.getSession();
                     if (d("session"), t.error) throw t.error;
-                    t.data.session ? await x(t.data.session) : "splash" === w.view && (y("gate"), s.hash && v("That sign-in link has expired or was already used — request a new one."))
+                    t.data.session ? await x(t.data.session) : "splash" === w.view && (y("gate"), s.hash && v("That sign-in link has expired or was already used. Request a new one."))
                 } catch (e) {
-                    d("sessionErr"), y("gate"), v("Sign-in problem: " + (e.message || e) + " — try again.")
+                    d("sessionErr"), y("gate"), v("Sign-in problem: " + (e.message || e) + ". Try again.")
                 }
             }(): setTimeout(e, 10)
         }()
