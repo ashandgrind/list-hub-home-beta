@@ -11,7 +11,7 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 ## Features
 
 - Email magic link + password fallback (household members and invited emails only)
-- **Households and invites**: each household has its own lists, stores and trips. Any member can invite from Menu > Household (7-day, one-use links); an admin creates new households
+- **Households and invites**: each household has its own lists, stores and trips. Any member can invite from the section titled with the household's name in Menu (7-day, one-use links); an admin creates new households
 - **List** (everyday / groceries) and **Wishlist**
 - Auto-categories in two levels (section → aisle), local rules + `lh-categorize`, store prefs
 - List grouped by section with subsection headers (Produce first, Frozen near the end)
@@ -20,15 +20,15 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 - Who added each item: Chris, Ellen, the label of the AI agent token that added it (editable in Menu > AI agents), or Shopping Buddy for the Shopping Buddy bot. Older rows omit this
 - Wishlist detail sheet: notes, target price, store/source, links, **Finds** log
 - **Find options** on Wishlist items (once / daily / weekly research jobs for Shopping Buddy)
-- Shopping Buddy can poll due jobs and log Finds — see [docs/finds.md](docs/finds.md)
+- Shopping Buddy can poll due jobs and log Finds. See [docs/finds.md](docs/finds.md)
 - **AI agents**: Menu > AI agents (named `lh_` tokens with editable labels) plus **Export for AI** on the List tab. Any assistant can read the list, add items (with quantity, store, note), remove items (logged in `list_hub.item_removals`), and mark cart progress. See [docs/AGENT_API.md](docs/AGENT_API.md)
 
 ## Households and invites
 
-- **Create a household (admin only).** Menu > Household > *Create a household (admin)*, or in the Supabase SQL editor:
+- **Create a household (admin only).** Menu > *Create a household (admin)* (shown only to admins), or in the Supabase SQL editor:
   `select public.lh_admin_create_household('Household name', 'owner@example.com', 'Owner name');`
   The new household gets an empty List and Wishlist (no items, no stores) and a one-use owner invite link. Send that link to the owner.
-- **Invite someone.** Any member: Menu > Household, enter their email (or leave it blank for a one-use link), tap **Invite**, then Copy, Share or Email the link. Links expire after 7 days or one use.
+- **Invite someone.** Any member: open Menu and find the section titled with your household's name (for example "Pollock Home"), enter their email (or leave it blank for a one-use link), tap **Invite**, then Copy, Share or Email the link. Links expire after 7 days or one use.
 - **Cancel / resend.** Pending invites are listed under the form. Resend makes a new link and cancels the old one.
 - **Accept.** The invitee opens the link, signs in with the invited email (magic link or password), and lands in that household.
 - One household per user for now (two removable unique indexes on `list_hub.members`). Members stay many-to-many so multi-household membership can come later.
@@ -55,7 +55,7 @@ Two-level categories (section + aisle) are in:
 
 `supabase/migrations/20260926030000_list_hub_two_level_categories.sql`
 
-Apply that file on the same project when you want aisles persisted (and so `lh_bootstrap` returns `subsection` / `subcats`). Until it is applied, the new app still works: it keeps writing the old `category` values the live client understands, and infers aisles locally. The migration is additive — `cats` stays `{ name_key: category_string }`, so the currently deployed app keeps loading after the SQL is applied.
+Apply that file on the same project when you want aisles persisted (and so `lh_bootstrap` returns `subsection` / `subcats`). Until it is applied, the new app still works: it keeps writing the old `category` values the live client understands, and infers aisles locally. The migration is additive: `cats` stays `{ name_key: category_string }`, so the currently deployed app keeps loading after the SQL is applied.
 
 Also deploy `supabase/functions/lh-categorize/index.ts` after (or with) the migration so xAI returns section + subsection. The app keeps a local keyword fallback either way.
 
