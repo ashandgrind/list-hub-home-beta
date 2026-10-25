@@ -2612,6 +2612,94 @@ function lhAuthRedirect() {
         }
 
         var agentSettingsFresh = null;
+        /* TV and embed: read-only embed tokens (lhe_) for /listhub/embed. Like agent
+           tokens, a fresh link lives in memory for this page session only and is never stored. */
+        var embedSettingsFresh = null;
+
+        function embedPageUrl(token) {
+            var dir = location.pathname.replace(/[^/]*$/, "");
+            return location.origin + dir + "embed" + (token ? "#token=" + encodeURIComponent(token) : "")
+        }
+
+        function embedRpcErrorMessage(err) {
+            var msg = err && (err.message || err.details || String(err)) || "Request failed";
+            if (/could not find the function|schema cache|404|PGRST202/i.test(msg)) return "TV embed links aren’t on the server yet. Apply the embed_tokens migration first.";
+            if (/not_allowed|42501/i.test(msg)) return "Only household members can manage embed links.";
+            if (/not_found|P0002/i.test(msg)) return "That embed link is already gone.";
+            if (/too_many_tokens|54000/i.test(msg)) return "This household already has 20 embed links. Revoke one first.";
+            return msg
+        }
+
+        async function embedSectionHtml() {
+            var listed = [],
+                listErr = "";
+            try {
+                var res = await _().rpc("lh_list_embed_tokens");
+                if (res.error) listErr = embedRpcErrorMessage(res.error);
+                else listed = Array.isArray(res.data) ? res.data : []
+            } catch (err) {
+                listErr = embedRpcErrorMessage(err)
+            }
+            var fresh = embedSettingsFresh;
+            var rows = listed.length ? listed.map(function(tok) {
+                return '<div class="agent-row" data-embed-row="' + h(tok.id) + '"><div class="agent-row-main"><strong>' + h(tok.label || "Embed") + '</strong><p class="meta">Created ' + h(agentWhen(tok.created_at)) + (tok.created_by ? " by " + h(tok.created_by) : "") + " · last used " + h(agentWhen(tok.last_used_at)) + '</p></div><button type="button" class="btn ghost sm danger" data-embed-revoke="' + h(tok.id) + '">Revoke</button></div>'
+            }).join("") : '<p class="hint">No embed links yet.</p>';
+            return '<div class="agent-sec" id="embed-sec"><h3>TV and embed</h3><p class="hint" style="margin-top:0">Make a read-only link that shows this household’s List on a TV, tablet, or dashboard with no sign-in. It can’t add, change, or remove anything. Anyone with the link can see the List, so revoke it if it leaks. The link is shown once, so copy it right away.</p>' +
+                '<div class="agent-create"><input id="embed-token-label" type="text" maxlength="80" placeholder="Label (Kitchen TV…)" enterkeyhint="done"><button type="button" class="btn primary" id="embed-create-btn">Create link</button></div>' +
+                (fresh && fresh.token ? '<div class="agent-once" id="embed-fresh"><strong>Copy this link now.</strong> It will not be shown again.<textarea class="agent-url" id="embed-fresh-url" readonly rows="3">' + h(embedPageUrl(fresh.token)) + '</textarea><button type="button" class="btn sm" id="embed-copy-fresh">Copy link</button></div>' : "") +
+                (listErr ? '<p class="error">' + h(listErr) + "</p>" : "") +
+                '<div class="group-title"><span>Active embed links</span></div>' + rows +
+                '<p class="hint">Options go after the token: <code>&amp;refresh=60</code> (seconds), <code>&amp;theme=light</code>, <code>&amp;columns=3</code>, <code>&amp;store=Costco</code>.</p></div>'
+        }
+
+        function bindEmbedSettings() {
+            var createBtn = l("#embed-create-btn");
+            createBtn && (createBtn.onclick = async function() {
+                var input = l("#embed-token-label"),
+                    label = (input && input.value || "").trim();
+                if (!label) return f("Label this screen first (for example Kitchen TV).");
+                createBtn.disabled = !0;
+                try {
+                    var created = await _().rpc("lh_create_embed_token", {
+                        p_label: label
+                    });
+                    if (created.error) return void f(embedRpcErrorMessage(created.error), 5e3);
+                    embedSettingsFresh = created.data;
+                    input && (input.value = "");
+                    openAgentSettings()
+                } catch (err) {
+                    f(embedRpcErrorMessage(err), 5e3)
+                } finally {
+                    createBtn.disabled = !1
+                }
+            });
+            l("#embed-copy-fresh") && (l("#embed-copy-fresh").onclick = function() {
+                if (!embedSettingsFresh || !embedSettingsFresh.token) return;
+                copyTextToClipboard(embedPageUrl(embedSettingsFresh.token)).then(function(ok) {
+                    f(ok ? "Link copied. It won’t be shown again after you leave this screen." : "Couldn’t copy. Select the link and copy it.")
+                })
+            });
+            u("#sheet [data-embed-revoke]").forEach(function(btn) {
+                btn.onclick = async function() {
+                    var tokenId = btn.getAttribute("data-embed-revoke");
+                    if (!tokenId) return;
+                    btn.disabled = !0;
+                    try {
+                        var revoked = await _().rpc("lh_revoke_embed_token", {
+                            p_id: tokenId
+                        });
+                        if (revoked.error) return void f(embedRpcErrorMessage(revoked.error), 5e3);
+                        if (embedSettingsFresh && embedSettingsFresh.id === tokenId) embedSettingsFresh = null;
+                        f("Embed link revoked.");
+                        openAgentSettings()
+                    } catch (err) {
+                        f(embedRpcErrorMessage(err), 5e3)
+                    } finally {
+                        btn.disabled = !1
+                    }
+                }
+            })
+        }
 
         function bindAgentSettings() {
             var createBtn = l("#agent-create-btn");
@@ -2909,6 +2997,7 @@ function lhAuthRedirect() {
             }
             var fresh = agentSettingsFresh;
             var householdHtml = await householdSectionHtml();
+            var embedHtml = await embedSectionHtml();
             var needsPassword = l("#setpw-btn") && !l("#setpw-btn").classList.contains("hidden");
             var tokenRows = listed.length ? listed.map(function(tok) {
                 var label = tok.label || tok.name || "Agent";
@@ -2923,9 +3012,10 @@ function lhAuthRedirect() {
                 (listErr ? '<p class="error">' + h(listErr) + "</p>" : "") +
                 '<div class="group-title"><span>Active tokens</span></div>' + tokenRows +
                 '</div><div class="agent-sec"><h3>API base URL</h3><textarea class="agent-url" id="agent-url" readonly rows="2">' + h(agentApiBaseUrl()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-url">Copy URL</button></div></div>' +
-                '<div class="agent-sec"><h3>Instructions for your AI</h3><textarea class="agent-instructions" id="agent-instructions" readonly rows="12">' + h(agentInstructionsSnippet()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-instructions">Copy instructions</button></div></div>');
+                '<div class="agent-sec"><h3>Instructions for your AI</h3><textarea class="agent-instructions" id="agent-instructions" readonly rows="12">' + h(agentInstructionsSnippet()) + '</textarea><div class="agent-copy-row"><button type="button" class="btn sm" id="agent-copy-instructions">Copy instructions</button></div></div>' + embedHtml);
             bindAgentSettings();
-            bindHouseholdSettings()
+            bindHouseholdSettings();
+            bindEmbedSettings()
         }
 
         async function exportListForAi() {
@@ -2955,6 +3045,7 @@ function lhAuthRedirect() {
             adderLabel: adderLabel,
             formatOpenListMarkdown: formatOpenListMarkdown,
             openAgentSettings: openAgentSettings,
+            embedPageUrl: embedPageUrl,
             exportListForAi: exportListForAi,
             agentApiBaseUrl: agentApiBaseUrl
         },
