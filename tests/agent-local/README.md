@@ -19,6 +19,8 @@ node tests/agent-local/test-agent-api.mjs     # API + migration checks
 node tests/agent-local/verify-agent-ui.mjs    # app UI against the same stack (Playwright), writes screenshots
 node tests/agent-local/test-households.mjs    # households + invites: admin create, invites, isolation, one-household rule
 node tests/agent-local/verify-households-ui.mjs  # household 2 UI: sign-in copy, the 8 app write paths, Menu invites, accept landing (OUT=dir for screenshots)
+node tests/agent-local/test-embed.mjs        # embed tokens: create, read, revoke, refused writes, agent token vs embed token, cross-household
+node tests/agent-local/verify-embed-ui.mjs   # embed page: headers, 3 viewports, iframe through an XFO proxy, options, refresh, Menu flow (OUT=dir)
 ```
 
 All exit 1 when any check fails.

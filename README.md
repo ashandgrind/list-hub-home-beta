@@ -33,6 +33,14 @@ This repo is the source for the live two-list app (List + Wishlist, trip plannin
 - **Accept.** The invitee opens the link, signs in with the invited email (magic link or password), and lands in that household.
 - One household per user for now (two removable unique indexes on `list_hub.members`). Members stay many-to-many so multi-household membership can come later.
 
+## TV and embed widget
+
+A read-only, login-free view of the household's main List for wall TVs and dashboards:
+
+`https://<host>/listhub/embed#token=<embed token>&refresh=60`
+
+Optional: `theme=dark|light`, `columns=auto|1-4`, `store=<store name>`, `scroll=0`. Create or revoke embed links in Menu > TV and embed (any member), or with `lh_create_embed_token` / `lh_list_embed_tokens` / `lh_revoke_embed_token` in the SQL editor. Embed tokens (`lhe_...`) are read-only and separate from agent tokens. Details: [docs/EMBED.md](docs/EMBED.md).
+
 ## Sign in
 
 1. Open the live URL
@@ -64,6 +72,12 @@ AI agent tokens (`list_hub.agent_tokens`) and `lh-agent-api` are in:
 `supabase/migrations/20260928120000_list_hub_agent_tokens.sql`
 
 Apply that file, then deploy `supabase/functions/lh-agent-api` with **verify_jwt OFF** (auth is `Authorization: Bearer lh_…`). See [docs/AGENT_API.md](docs/AGENT_API.md). No extra secrets. The live app keeps working if the SQL is applied first.
+
+Embed tokens (`list_hub.embed_tokens`) and the `lh_embed_list` RPC are in:
+
+`supabase/migrations/20261025120000_list_hub_embed_tokens.sql`
+
+Apply that file before using the embed. No edge function to deploy. Until it is applied, the embed page shows "This list link isn't working" and Menu > TV and embed says to apply the migration first.
 
 ## Deploy
 
