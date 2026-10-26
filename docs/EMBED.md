@@ -7,6 +7,7 @@ A read-only, login-free view of a household's main List, grouped by section and 
 ```
 https://<list hub host>/listhub/embed#token=<embed token>
 https://<list hub host>/listhub/embed#token=<embed token>&refresh=60&theme=dark&columns=auto&store=Costco&scroll=1
+https://<list hub host>/listhub/embed#token=<embed token>&title=0&bg=transparent&text=light
 ```
 
 Hosts that serve List Hub at the root (for example `list-hub-home-beta.vercel.app`) also answer at `/embed`.
@@ -21,6 +22,25 @@ The token goes after `#`, so it is never sent to a server, never lands in access
 | `columns` | `auto` | `auto` (fits the width) or `1` to `4` |
 | `store` | none | show only items for one store (case-insensitive), for example `Costco` |
 | `scroll` | `1` | `0` or `off` turns off the slow auto-scroll used when the list is taller than the screen |
+| `title` | `1` | `0` (also `off`, `false`, `no`, `hide`) hides the heading row (household name, item count, updated time) so only sections, aisles and items show. `1` shows it |
+| `bg` | solid | `transparent` removes every page-level fill so the dashboard behind the iframe shows through. Anything else keeps the solid background |
+| `text` | from `theme` | with `bg=transparent`: `light` (light text, for dark dashboards) or `dark` (dark text, for light dashboards). Left out, it follows `theme` (`dark` theme gives light text, `light` theme gives dark text). Ignored without `bg=transparent` |
+
+With `title=0` the "Offline" note shows as a small line above the list instead of in the hidden heading. Invalid, revoked and missing token messages still show.
+
+### Transparent widget on a dashboard
+
+`bg=transparent` keeps section headers, aisle labels, item rows and quantity or store chips, but drops the page, list and section backgrounds. Text gets a soft shadow (dark behind light text, light behind dark text) and row lines are see-through, so rows stay readable on photos and gradients without a solid box behind them.
+
+```html
+<!-- dark dashboard -->
+<iframe src="https://hq.cruxibl.com/listhub/embed#token=...&title=0&bg=transparent&text=light"
+        style="border:0;width:100%;height:100%;background:transparent"></iframe>
+<!-- light dashboard -->
+<iframe src="https://hq.cruxibl.com/listhub/embed#token=...&title=0&bg=transparent&text=dark" ...></iframe>
+```
+
+Chrome paints an opaque backdrop behind an iframe when the iframe page and the page around it use different CSS `color-scheme` values. The widget doesn't set one, so if your dashboard sets `color-scheme: dark` (or `light`) on its root, also give the iframe element `style="color-scheme: normal"`.
 
 The page also refreshes when it becomes visible again. If List Hub can't be reached it keeps showing the last list with an "Offline" note and keeps retrying.
 
@@ -51,7 +71,7 @@ Leave out the household id to use your own household.
 
 ## Framing
 
-The embed route sends `Content-Security-Policy: frame-ancestors *` (and no `X-Frame-Options`), so any page can show it in an iframe:
+The embed routes (`/listhub/embed`, `/listhub/embed.html`, `/embed`, `/embed.html`, each with its own literal rule in `vercel.json`) send `Content-Security-Policy: frame-ancestors *`, `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex, nofollow` (and no `X-Frame-Options`), so any page can show it in an iframe:
 
 ```html
 <iframe src="https://hq.cruxibl.com/listhub/embed#token=..." style="border:0;width:100%;height:100%"></iframe>

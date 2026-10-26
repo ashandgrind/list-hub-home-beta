@@ -60,7 +60,18 @@ const servers = [
 const dash = createServer((req, res) => {
   const u = new URL(req.url, "http://x");
   res.writeHead(200, { "Content-Type": "text/html" });
-  res.end(`<!doctype html><title>Dashboard</title><body style="margin:0;background:#111"><iframe id="w" src="${u.searchParams.get("src") || ""}" style="width:1200px;height:700px;border:0"></iframe></body>`);
+  const src = u.searchParams.get("src") || "";
+  const look = u.searchParams.get("look"); // dark | light: a HomeBrain-style dashboard behind a transparent widget
+  if (!look) return res.end(`<!doctype html><title>Dashboard</title><body style="margin:0;background:#111"><iframe id="w" src="${src}" style="width:1200px;height:700px;border:0"></iframe></body>`);
+  const dark = look === "dark";
+  const bgc = dark ? "linear-gradient(135deg,#0d1b2a 0%,#1b3a5c 55%,#3a2f5b 100%)" : "linear-gradient(135deg,#fbf6ec 0%,#e9f1f7 55%,#f4e6ea 100%)";
+  const fg = dark ? "#f2f5f9" : "#18222d";
+  res.end(`<!doctype html><meta charset="utf-8"><title>HomeBrain test dashboard</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%}body{background:${bgc};color:${fg};font-family:system-ui,sans-serif;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:baseline;padding:16px 24px;font-size:20px;opacity:.85}header b{font-size:34px}
+.wrap{flex:1;display:flex;gap:20px;padding:0 24px 24px;min-height:0}.side{width:22%;font-size:18px;opacity:.8}
+#w{flex:1;border:0;min-width:0;height:100%}@media (max-width:600px){.side{display:none}.wrap{padding:0 8px 8px}header{padding:10px 12px}}</style>
+<header><b>7:42</b><span>Kitchen</span></header><div class="wrap"><div class="side">72 F, clear<br><br>Trash day: Tue</div><iframe id="w" src="${src}"></iframe></div>`);
 });
 await new Promise((r) => dash.listen(PORT + 3, "127.0.0.1", r));
 const SITE = `http://127.0.0.1:${PORT}`;
@@ -150,6 +161,18 @@ try {
       `status ${r.status} xfo ${r.headers.get("x-frame-options")} csp "${csp}"`);
     const body = await r.text();
     record("embed page is the widget, not the app (no sign-in UI, no supabase-js)", /id="embed"/.test(body) && !/id="gate"|supabase-js|signin/i.test(body), "wrong page body");
+    // Vercel's path matcher did not apply "/(listhub/)?embed(\\.html)?" to /embed on prod (2026-10-25 ship),
+    // so every embed path gets its own literal rule.
+    const literal = (vercel.headers || []).filter((h) => /embed/.test(h.source)).map((h) => h.source);
+    const want = ["/listhub/embed", "/listhub/embed.html", "/embed", "/embed.html"];
+    record("vercel.json has a literal header rule for each embed path (no regex groups Vercel may skip)",
+      want.every((w) => literal.includes(w)) && literal.every((x) => !/[()?\\]/.test(x)), `embed rule sources ${JSON.stringify(literal)}`);
+    for (const path of ["/embed", "/embed.html", "/listhub/embed.html"]) {
+      const e = await fetch(`${SITE}${path}`);
+      record(`GET ${path}: CSP frame-ancestors *, Referrer-Policy no-referrer, X-Robots-Tag noindex`,
+        e.status === 200 && /frame-ancestors \*/.test(e.headers.get("content-security-policy") || "") && e.headers.get("referrer-policy") === "no-referrer" && /noindex/.test(e.headers.get("x-robots-tag") || ""),
+        `status ${e.status} csp ${e.headers.get("content-security-policy")} ref ${e.headers.get("referrer-policy")} robots ${e.headers.get("x-robots-tag")}`);
+    }
     const app = await fetch(`${SITE}/listhub/`);
     record("main app page keeps its old headers (no frame-ancestors added)", app.status === 200 && !app.headers.get("content-security-policy"), `app csp ${app.headers.get("content-security-policy")}`);
   });
@@ -253,6 +276,108 @@ try {
     const got = await c2.page.waitForFunction(() => [...document.querySelectorAll(".e-name")].some((x) => x.textContent === "Lemons"), null, { timeout: 8000 }).then(() => true, () => false);
     record("auto-refresh polls (refresh=20) and shows a newly added item", got, "new item never showed");
     await c2.context.close();
+  });
+
+  // ---- title=0, bg=transparent, text=light|dark ----
+  await step("title", async () => {
+    const { context, page } = await newPage(browser, s, { width: 1440, height: 900 }, false, false);
+    const look = async (extra) => {
+      await page.goto("about:blank");
+      await page.goto(embedUrl(tok, extra), { waitUntil: "domcontentloaded" });
+      await widgetReady(page);
+      return page.evaluate(() => {
+        const h = document.querySelector(".e-head"), r = h && h.getBoundingClientRect();
+        return { headShown: !!(r && r.height > 0), text: document.body.innerText, groups: document.querySelectorAll(".e-group").length,
+          names: document.querySelectorAll(".e-name").length, subs: document.querySelectorAll(".e-sub").length, p: window.__lhEmbed && window.__lhEmbed.params,
+          cols: document.getElementById("e-list").style.columnCount, firstTop: Math.round((document.querySelector(".e-group") || document.body).getBoundingClientRect().top) };
+      });
+    };
+    const off = await look("&title=0");
+    record("title=0 hides the household heading; sections, subsections and items still render",
+      !off.headShown && !/Test Home List/.test(off.text) && off.groups >= 4 && off.subs >= 3 && off.names >= ITEMS.length + 1 && off.p.title === false,
+      `head ${off.headShown} groups ${off.groups} subs ${off.subs} names ${off.names} p ${JSON.stringify(off.p)}`);
+    record("title=0: the list starts at the top of the page", off.firstTop < 60, `first section top ${off.firstTop}px`);
+    await page.screenshot({ path: join(OUT, "embed-title0-1440x900.png") });
+    const on = await look("&title=1");
+    const dflt = await look("");
+    record("title=1 and the default both show the heading", on.headShown && /Test Home List/.test(on.text) && dflt.headShown && /Test Home List/.test(dflt.text), `title=1 ${on.headShown} default ${dflt.headShown}`);
+    const combo = await look("&title=0&theme=light&columns=2&store=Costco&refresh=5&bg=transparent&text=dark");
+    record("existing params keep working next to the new ones (theme, columns, store, refresh)",
+      combo.cols === "2" && combo.p.refresh === 15 && combo.p.theme === "light" && combo.names === ITEMS.filter((i) => i[2] === "costco").length && combo.p.bg === "transparent" && combo.p.text === "dark",
+      `cols ${combo.cols} p ${JSON.stringify(combo.p)} names ${combo.names}`);
+    record("title=0: no page errors", page.errors.length === 0, page.errors.join(" | "));
+    await context.close();
+  });
+
+  await step("transparent", async () => {
+    const { context, page } = await newPage(browser, s, { width: 1440, height: 900 }, false, false);
+    const colors = async (extra) => {
+      await page.goto("about:blank");
+      await page.goto(embedUrl(tok, extra), { waitUntil: "domcontentloaded" });
+      await widgetReady(page);
+      return page.evaluate(() => {
+        const cs = (el) => getComputedStyle(el);
+        const lum = (c) => { const m = c.match(/[\d.]+/g).map(Number); return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
+        const name = document.querySelector(".e-name");
+        return { html: cs(document.documentElement).backgroundColor, body: cs(document.body).backgroundColor, main: cs(document.getElementById("embed")).backgroundColor,
+          list: cs(document.getElementById("e-list")).backgroundColor, group: cs(document.querySelector(".e-group")).backgroundColor,
+          textLum: lum(cs(name).color), shadow: cs(name).textShadow, p: window.__lhEmbed.params };
+      });
+    };
+    const clear = (c) => c === "rgba(0, 0, 0, 0)" || c === "transparent";
+    const light = await colors("&bg=transparent&text=light");
+    record("bg=transparent: html, body, page container, list and sections have no fill",
+      [light.html, light.body, light.main, light.list, light.group].every(clear), JSON.stringify(light));
+    record("text=light: light text with a dark shadow (for dark dashboards)", light.textLum > 0.9 && /rgba\(0, 0, 0/.test(light.shadow), `lum ${light.textLum} shadow ${light.shadow}`);
+    const dark = await colors("&bg=transparent&text=dark");
+    record("text=dark: dark text with a light halo (for light dashboards)", dark.textLum < 0.15 && /rgba\(255, 255, 255/.test(dark.shadow) && clear(dark.body), `lum ${dark.textLum} shadow ${dark.shadow} body ${dark.body}`);
+    const fbLight = await colors("&bg=transparent&theme=light");
+    const fbDark = await colors("&bg=transparent");
+    record("bg=transparent without text= falls back to theme (light theme: dark text; default dark theme: light text)",
+      fbLight.textLum < 0.15 && fbDark.textLum > 0.9 && fbLight.p.text === "dark" && fbDark.p.text === "light", `light ${fbLight.textLum} dark ${fbDark.textLum}`);
+    const solid = await colors("&text=light");
+    record("without bg=transparent the page keeps its solid fill (text= alone changes nothing)", /rgb\(5, 7, 10\)/.test(solid.body) && solid.p.bg === "solid", `body ${solid.body}`);
+    await context.close();
+
+    // the real proof: pixels behind the widget are the dashboard's own pixels
+    for (const [tone, text] of [["dark", "light"], ["light", "dark"]]) {
+      for (const [tag, viewport, touch] of [["tv", { width: 1920, height: 1080 }, false], ["desktop", { width: 1440, height: 900 }, false], ["phone", { width: 390, height: 844 }, true]]) {
+        const c = await newPage(browser, s, viewport, touch, false);
+        const src = embedUrl(tok, `&title=0&bg=transparent&text=${text}&scroll=0`);
+        await c.page.goto(`http://localhost:${PORT + 3}/?look=${tone}&src=${encodeURIComponent(src)}`, { waitUntil: "domcontentloaded" });
+        let frame = null;
+        for (let i = 0; i < 40 && !frame; i++) { frame = c.page.frames().find((fr) => fr.url().includes("/listhub/embed")); if (!frame) await c.page.waitForTimeout(100); }
+        const ok = frame && (await frame.waitForSelector(".e-group", { timeout: 8000 }).then(() => true, () => false));
+        const box = await c.page.locator("#w").boundingBox();
+        // the iframe's left padding strip (full height, never under text): compare with the same strip while the iframe is hidden
+        const clip = { x: Math.round(box.x + 2), y: Math.round(box.y + 8), width: 8, height: Math.round(box.height - 16) };
+        await c.page.mouse.move(1, 1);
+        const withFrame = await c.page.screenshot({ clip });
+        await c.page.evaluate(() => { document.getElementById("w").style.visibility = "hidden"; });
+        const without = await c.page.screenshot({ clip });
+        await c.page.evaluate(() => { document.getElementById("w").style.visibility = "visible"; });
+        const headShown = frame ? await frame.evaluate(() => { const r = document.querySelector(".e-head").getBoundingClientRect(); return r.height > 0; }) : true;
+        record(`${tag} on a ${tone} dashboard: bg=transparent&text=${text}&title=0 shows the dashboard through the iframe (pixels match with the iframe hidden), no heading`,
+          ok && withFrame.equals(without) && !headShown, `rendered ${ok} pixels equal ${withFrame.equals(without)} head ${headShown}`);
+        await c.page.screenshot({ path: join(OUT, `embed-transparent-${tone}-dash-text-${text}-${viewport.width}x${viewport.height}.png`) });
+        record(`${tag} on a ${tone} dashboard: no page errors`, c.page.errors.length === 0, c.page.errors.join(" | "));
+        await c.context.close();
+      }
+    }
+
+    // real mouse wheel over the transparent widget still scrolls a long list (TV remotes and mice)
+    const m = await newPage(browser, s, { width: 1440, height: 520 }, false, false);
+    await m.page.goto(`http://localhost:${PORT + 3}/?look=dark&src=${encodeURIComponent(embedUrl(tok, "&title=0&bg=transparent&text=light&columns=1&scroll=0"))}`, { waitUntil: "domcontentloaded" });
+    let fr = null;
+    for (let i = 0; i < 40 && !fr; i++) { fr = m.page.frames().find((x) => x.url().includes("/listhub/embed")); if (!fr) await m.page.waitForTimeout(100); }
+    await fr.waitForSelector(".e-group", { timeout: 8000 });
+    const b = await m.page.locator("#w").boundingBox();
+    await m.page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await m.page.mouse.wheel(0, 600);
+    await m.page.waitForTimeout(400);
+    const top = await fr.evaluate(() => document.getElementById("embed").scrollTop);
+    record("real mouse wheel over a transparent, title=0 widget scrolls the list", top > 100, `scrollTop ${top}`);
+    await m.context.close();
   });
 
   // ---- Menu > TV and embed (create, copy link, revoke) ----
