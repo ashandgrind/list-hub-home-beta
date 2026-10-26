@@ -70,6 +70,7 @@ body {
   max-width: 40em;
 }
 .e-msg.error { color: var(--danger); }
+.e-msg.offline { font-size: 0.72em; margin: 0 0 0.6em; }
 .e-msg[hidden] { display: none; }
 .e-list {
   column-width: 15em;
@@ -121,6 +122,39 @@ body {
   color: var(--chip-text);
   white-space: nowrap;
 }
+/* title=0: only the list (heading row is hidden in embed.js) */
+.e-head[hidden] { display: none; }
+
+/* bg=transparent: no page fill at all, so the dashboard behind shows through.
+   text=light (for dark dashboards) or text=dark (for light dashboards) sets the palette;
+   a soft text shadow and see-through rules keep rows readable on busy backgrounds. */
+html.bg-transparent,
+body.bg-transparent,
+body.bg-transparent .embed,
+body.bg-transparent .e-list,
+body.bg-transparent .e-group { background: transparent; }
+body.bg-transparent.text-light {
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+  --accent: #5ef0a6;
+  --line: rgba(255, 255, 255, 0.2);
+  --chip: rgba(0, 0, 0, 0.38);
+  --chip-text: #ffffff;
+  --danger: #ff9aa0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 6px rgba(0, 0, 0, 0.35);
+}
+body.bg-transparent.text-dark {
+  --text: #0b1015;
+  --muted: rgba(10, 16, 22, 0.74);
+  --accent: #0a7444;
+  --line: rgba(10, 16, 22, 0.18);
+  --chip: rgba(255, 255, 255, 0.6);
+  --chip-text: #16222e;
+  --danger: #a3141f;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7), 0 0 5px rgba(255, 255, 255, 0.4);
+}
+body.bg-transparent .e-qty, body.bg-transparent .e-store { text-shadow: none; }
+
 .e-qty { font-variant-numeric: tabular-nums; font-weight: 700; }
 @media (max-width: 520px) {
   .e-list { column-width: auto; column-count: 1; }

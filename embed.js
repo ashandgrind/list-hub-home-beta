@@ -2,6 +2,7 @@
    Built for TVs, kiosks, and dashboards (for example in an iframe).
 
    URL:  /listhub/embed#token=lhe_...&refresh=60&theme=dark&columns=auto&store=Costco
+         optional: &title=0 (list only, no heading)  &bg=transparent&text=light|dark
    The token can also be passed as ?token=, but the #fragment form is preferred
    because browsers never send the fragment to servers, proxies, or logs.
 
@@ -40,6 +41,12 @@
   var COLUMNS = /^[1-4]$/.test(P.columns || "") ? Number(P.columns) : "auto";
   var STORE = (P.store || "").trim().toLowerCase();
   var SCROLL = P.scroll !== "0" && P.scroll !== "off";
+  /* title=0 hides the heading row (household name, count, updated); default and title=1 show it */
+  var TITLE = !/^(0|off|false|no|hide)$/i.test(P.title || "");
+  /* bg=transparent drops every page-level fill so a dashboard shows through */
+  var BG = String(P.bg || "").toLowerCase() === "transparent" ? "transparent" : "solid";
+  /* text=light|dark picks the text color for a transparent page; it falls back to theme */
+  var TEXT = /^(light|dark)$/i.test(P.text || "") ? String(P.text).toLowerCase() : (THEME === "light" ? "dark" : "light");
 
   /* keep a ?token= out of the address bar and any later Referer */
   if (/[?&]token=/i.test(location.search) && history.replaceState) {
@@ -60,7 +67,14 @@
     });
   };
 
-  document.body.className = "theme-" + THEME;
+  /* light text uses the dark palette and dark text the light palette */
+  var PALETTE = BG === "transparent" ? (TEXT === "dark" ? "light" : "dark") : THEME;
+  document.body.className = "theme-" + PALETTE + (BG === "transparent" ? " bg-transparent text-" + TEXT : "") + (TITLE ? "" : " no-title");
+  if (BG === "transparent") document.documentElement.classList.add("bg-transparent");
+  if (!TITLE) {
+    var head = document.querySelector(".e-head");
+    if (head) head.hidden = true;
+  }
   var listEl = $("e-list");
   if (COLUMNS !== "auto") {
     listEl.style.columnCount = String(COLUMNS);
@@ -164,7 +178,10 @@
     }).catch(function () {
       clearTimeout(to);
       if (lastOk) {
-        $("e-updated").textContent = "Offline, showing " + fmtTime(new Date(lastOk)) + ". Retrying.";
+        var note = "Offline, showing " + fmtTime(new Date(lastOk)) + ". Retrying.";
+        $("e-updated").textContent = note;
+        /* with the heading hidden, the offline note goes above the list instead */
+        if (!TITLE) setMsg(note, "offline");
       } else {
         setMsg("Can't reach List Hub right now. Retrying.", "error");
       }
@@ -208,7 +225,7 @@
     if (SCROLL) autoScroll();
   }
 
-  window.__lhEmbed = { params: { refresh: REFRESH, theme: THEME, columns: COLUMNS, store: STORE, scroll: SCROLL }, reload: load };
+  window.__lhEmbed = { params: { refresh: REFRESH, theme: THEME, columns: COLUMNS, store: STORE, scroll: SCROLL, title: TITLE, bg: BG, text: BG === "transparent" ? TEXT : null }, reload: load };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
